@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juana's Ribbon</title>
+    <link rel="stylesheet" href="/frontend/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>    
+<body>   
+    <div class="app-container">
+        <header class="main-header">
+            <div class="header-content">
+                <div class="logo">
+
+                    <img src="/static/images/logo.jpg" alt="Logo" class="logo-img">
+                    <span>Juana's Ribbon</span>
+                </div>           
+                <nav class="main-nav">
+                    <button class="nav-btn active" data-page="welcome" onclick="showPage('welcome')">
+                        <i class="fas fa-home"></i> Home
+                    </button>
+                    <button class="nav-btn" data-page="products" onclick="showPage('products')">
+                        <i class="fas fa-store"></i> Products
+                    </button>
+                    <button class="nav-btn customer-only" data-page="cart" onclick="showPage('cart')" id="cart-nav-btn" style="display: none;">
+                        <i class="fas fa-shopping-cart"></i> Cart <span class="cart-badge" id="cart-badge">0</span>
+                    </button>
+                    <button class="nav-btn customer-only" data-page="order-status" onclick="showPage('order-status')" id="order-status-btn" style="display: none;">
+                        <i class="fas fa-clipboard-list"></i> Order Status
+                    </button>
+                    <button class="nav-btn user-only" id="messages-btn" onclick="openMessagesModal()" style="display:none;">
+                        <i class="fas fa-envelope"></i> Messages <span class="message-badge" id="message-badge" style="display:none;">0</span>
+                    </button>
+
+                    <!-- Notification buttons -->
+                    <button class="nav-btn customer-only" id="notifications-btn-customer" onclick="openNotificationHeader()" style="display:none;">
+                        <i class="fas fa-bell"></i> Notifications
+                        <span class="notification-badge" id="notification-badge-customer" style="display:none;">0</span>
+                    </button>
+                    <button class="nav-btn owner-only" id="notifications-btn-owner" onclick="openNotificationHeader()" style="display:none;">
+                        <i class="fas fa-bell"></i> Notifications
+                        <span class="notification-badge" id="notification-badge-owner" style="display:none;">0</span>
+                    </button>
+
+                    <button class="nav-btn owner-only" id="dashboard-btn" onclick="showPage('dashboard')" style="display:none;">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </button>
+                    <button class="nav-btn user-info" id="user-info-btn" data-page="profile" onclick="showPage('profile')" style="display:none;" title="View Profile">
+                        <img id="nav-profile-image" src="/static/images/default-avatar.svg" alt="Profile" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">
+                        <span id="user-gmail"></span>
+                    </button>
+                    <button class="nav-btn login-btn" id="login-btn" onclick="showLoginModal()">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                    <button class="nav-btn owner-login-btn" id="owner-login-btn" onclick="showOwnerLoginModal()">
+                        <i class="fas fa-lock"></i> Owner Login
+                    </button>
+                    <button class="nav-btn logout-btn" id="logout-btn" onclick="showLogoutConfirmation()" style="display:none;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </nav>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Notification Modal -->
+        <div id="notification-modal-overlay" class="notification-modal-overlay" style="display:none;" onclick="closeNotificationHeader()"></div>
+        <div id="notification-header" class="notification-modal" style="display:none;">
+            <div class="notification-modal-content">
+                <div class="notification-modal-header">
+                    <div class="notification-title">
+                        <i class="fas fa-bell"></i>
+                        <span id="notification-title-text">Notifications</span>
+                        <span class="notification-count" id="notification-count">0</span>
+                    </div>
+                    <button class="notification-close-btn" onclick="closeNotificationHeader()" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="notification-list" id="header-notification-list">
+                    <!-- Notifications will be loaded here -->
+                </div>
+                <div class="notification-modal-footer">
+                    <button class="notification-link" onclick="closeNotificationHeader()">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <section id="welcome-page" class="page active">
+                <div class="welcome-hero">
+                    <div class="welcome-content">
+                        <h1>Welcome to <span class="brand-name">Juana's Ribbon</span></h1>
+                        <p class="tagline">Beautiful Ribbon Flowers & Delicious Donuts</p>
+                        <div class="welcome-features">
+                            <div class="feature-card">
+                                <img src="/static/images/ribbon-rose.jpg" alt="Ribbon Flowers" class="feature-img">
+                                <h3>Ribbon Flowers</h3>
+                                <p>Handcrafted satin ribbon flowers in stunning colors</p>
+                            </div>
+                            <div class="feature-card">
+                                <img src="/static/images/fuzzy-lily.jpg" alt="Fuzzy Bouquets" class="feature-img">
+                                <h3>Fuzzy Bouquets</h3>
+                                <p>Unique fuzzy wire bouquets for every occasion</p>
+                            </div>
+                            <div class="feature-card">
+                                <img src="/static/images/classic-donut.jpg" alt="Mini Donuts" class="feature-img">
+                                <h3>Mini Donuts</h3>
+                                <p>Delicious handmade donuts in various flavors</p>
+                            </div>
+                        </div>
+                        <button class="cta-btn" onclick="showPage('products')">
+                            <i class="fas fa-shopping-bag"></i> Shop Now
+                        </button>
+                    </div>
+                    <div class="welcome-visual">
+                        <div class="floating-products">
+                            <div class="product-float float-1"><img src="/static/images/floater-ribbon.png" alt="Ribbon Rose"></div>
+                            <div class="product-float float-2"><img src="/static/images/floater-fuzzy.png" alt="Fuzzy Lily"></div>
+                            <div class="product-float float-3"><img src="/static/images/floater-donuts.png" alt="Classic Donut"></div>
+                        </div>
+                        <div class="floating-comments">
+                            <div class="comment-bubble comment-1">Made with Love 💕</div>
+                            <div class="comment-bubble comment-2">100% Handmade ✋</div>
+                            <div class="comment-bubble comment-3">Feel the Eternal Love 💜</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="products-page" class="page">
+                <div class="page-header">
+                    <h2>Our Products</h2>
+                    <div class="bundle-banner" onclick="openBundleModal()">
+                        <i class="fas fa-gift"></i>
+                        <span>Create Custom Bundle (2-10 items)</span>
+                        <small>Save & Shop together!</small>
+                    </div>
+                    <div class="search-filter">
+                        <input type="text" id="search-input" placeholder="Search products..." oninput="filterProducts()">
+                        <select id="category-filter" onchange="filterProducts()">
+                            <option value="">All Categories</option>
+                            <option value="SATIN RIBBON FLOWERS">Satin Ribbon Flowers</option>
+                            <option value="LOVER INSPIRED BOUQUET">Lover Inspired Bouquet</option>
+                            <option value="FUZZY WIRE BOUQUET">Fuzzy Wire Bouquet</option>
+                            <option value="BUTTERFLY BOUQUET">Butterfly Bouquet</option>
+                            <option value="MINI DONUTS">Mini Donuts</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="products-grid" id="products-grid">
+                </div>
+            </section>
+
+            <section id="order-status-page" class="page">
+                <div class="page-header">
+                    <h2>My Orders</h2>
+                    <p class="page-subtitle">Track your order status and view receipts</p>
+                </div>
+
+                <!-- Status Dashboard Headers -->
+                <div class="status-dashboard">
+                    <button class="status-header to-pay-header active" onclick="filterOrdersByStatus('to_pay')">
+                        <div class="status-icon">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="to-pay-count">0</span>
+                            <span class="status-label">To Pay</span>
+                        </div>
+                    </button>
+                    <button class="status-header paid-header" onclick="filterOrdersByStatus('paid')">
+                        <div class="status-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="paid-count">0</span>
+                            <span class="status-label">Paid</span>
+                        </div>
+                    </button>
+                    <button class="status-header production-header" onclick="filterOrdersByStatus('production')">
+                        <div class="status-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="production-count">0</span>
+                            <span class="status-label">Production</span>
+                        </div>
+                    </button>
+                    <button class="status-header ready-header" onclick="filterOrdersByStatus('ready')">
+                        <div class="status-icon">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="ready-count">0</span>
+                            <span class="status-label">Ready</span>
+                        </div>
+                    </button>
+                    <button class="status-header receive-header" onclick="filterOrdersByStatus('receive')">
+                        <div class="status-icon">
+                            <i class="fas fa-hand-holding-box"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="receive-count">0</span>
+                            <span class="status-label">Receive</span>
+                        </div>
+                    </button>
+                    <button class="status-header delivered-header" onclick="filterOrdersByStatus('delivered')">
+                        <div class="status-icon">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="delivered-count">0</span>
+                            <span class="status-label">Delivered</span>
+                        </div>
+                    </button>
+                    <button class="status-header return-header" onclick="filterOrdersByStatus('return')">
+                        <div class="status-icon">
+                            <i class="fas fa-redo"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="return-count">0</span>
+                            <span class="status-label">Return/Refund</span>
+                        </div>
+                    </button>
+                    <button class="status-header cancelled-header" onclick="filterOrdersByStatus('cancelled')">
+                        <div class="status-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-count" id="cancelled-count">0</span>
+                            <span class="status-label">Cancelled</span>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Orders List -->
+                <div class="orders-container">
+                    <div id="orders-list-view" class="orders-list">
+                        <div class="no-orders-message">
+                            <i class="fas fa-shopping-bag"></i>
+                            <p>No orders found. <a href="#" onclick="showPage('products')">Start Shopping</a></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="cart-page" class="page">
+                <div class="page-header">
+                    <h2>Shopping Cart</h2>
+                </div>
+                <div class="cart-container">
+                    <div class="cart-items" id="cart-items">
+                        <div class="empty-cart">
+                            <i class="fas fa-shopping-cart"></i>
+                            <p>Your cart is empty</p>
+                            <button class="cta-btn" onclick="showPage('products')">Browse Products</button>
+                        </div>
+                    </div>
+                    <div class="cart-summary" id="cart-summary" style="display:none;">
+                        <h3>Order Summary</h3>
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span id="cart-subtotal">₱0</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total</span>
+                            <span id="cart-total">₱0</span>
+                        </div>
+                        <button class="checkout-btn" onclick="checkout()">
+                            <i class="fas fa-credit-card"></i> Proceed to Checkout
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile Page -->
+            <section id="profile-page" class="page">
+                <div class="page-header">
+                    <h2>My Profile</h2>
+                    <p class="page-subtitle">Manage your account settings</p>
+                </div>
+
+                <div class="profile-container">
+                    <!-- Profile Info Card -->
+                    <div class="profile-card">
+                        <div class="profile-header">
+                            <div class="profile-image-container">
+                                <img id="profile-avatar" src="/static/images/default-avatar.svg" alt="Profile" class="profile-avatar">
+                                <button class="edit-avatar-btn" onclick="triggerProfileImageUpload()" title="Change profile picture">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                                <input type="file" id="profile-image-input" accept="image/*" style="display:none;" onchange="previewProfileImage(event)">
+                            </div>
+                            <div class="profile-info">
+                                <h3 id="profile-username">User</h3>
+                                <p id="profile-gmail" class="profile-gmail"></p>
+                                <p id="profile-member-since" class="profile-member-since"></p>
+                            </div>
+                        </div>
+
+                        <div class="profile-actions">
+                            <button class="profile-btn" onclick="openEditUsernameModal()" title="Edit username">
+                                <i class="fas fa-edit"></i> Edit Username
+                            </button>
+                            <button class="profile-btn" onclick="openChangePasswordModal()" title="Change password">
+                                <i class="fas fa-lock"></i> Change Password
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Account Stats -->
+                    <div class="profile-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-shopping-bag"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Total Orders</span>
+                                <span class="stat-value" id="total-orders-count">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-truck"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Delivered</span>
+                                <span class="stat-value" id="delivered-count-stat">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Total Spent</span>
+                                <span class="stat-value" id="total-spent-stat">₱0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="dashboard-page" class="page">
+                <div class="page-header">
+                    <h2>Owner Dashboard</h2>
+                    <div class="dashboard-header-actions">
+                        <button class="open-product-mgmt-btn" onclick="showProductManagementModal()">
+                            <i class="fas fa-boxes"></i> Product Management
+                        </button>
+                        <div class="period-selector">
+                            <button class="period-btn active" data-period="weekly" onclick="changePeriod('weekly')">Weekly</button>
+                            <button class="period-btn" data-period="monthly" onclick="changePeriod('monthly')">Monthly</button>
+                            <button class="period-btn" data-period="6months" onclick="changePeriod('6months')">6 Months</button>
+                            <button class="period-btn" data-period="yearly" onclick="changePeriod('yearly')">Yearly</button>
+                        </div>
+                        <button class="account-settings-btn" onclick="showAccountSettingsModal()">
+                            <i class="fas fa-cog"></i> Account Settings
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-shopping-bag"></i>
+                        <div class="stat-info">
+                            <h3>Total Orders</h3>
+                            <p id="total-orders">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-rupee-sign"></i>
+                        <div class="stat-info">
+                            <h3>Total Revenue</h3>
+                            <p id="total-revenue">₱0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-chart-bar"></i>
+                        <div class="stat-info">
+                            <h3>Period Orders</h3>
+                            <p id="period-orders">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-wallet"></i>
+                        <div class="stat-info">
+                            <h3>Period Revenue</h3>
+                            <p id="period-revenue">₱0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="low-stock-alert" id="low-stock-alert" style="display:none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Low Stock Alert: </span>
+                    <span id="low-stock-items"></span>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>Revenue Over Time</h3>
+                        <canvas id="revenue-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Sales by Day of Week</h3>
+                        <canvas id="day-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Sales by Month</h3>
+                        <canvas id="month-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Sales by Product</h3>
+                        <canvas id="sales-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Top Selling Items</h3>
+                        <canvas id="top-selling-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Customer Logins</h3>
+                        <canvas id="logins-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="customer-notifications">
+                    <h3><i class="fas fa-envelope"></i> Customer Gmail Notifications <span class="notification-badge" id="notification-badge" style="display:none;"></span></h3>
+                    <div class="notification-list" id="customer-notifications-list">
+                        <div class="empty-notifications">
+                            <i class="fas fa-bell-slash"></i>
+                            <p>No recent customer logins</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="simple-order-management orders-table-container">
+<h3><i class="fas fa-clipboard-list"></i> Order Management <button class="open-order-mgmt-btn" onclick="loadSimpleOrderManagement()">Refresh Orders</button></h3>
+
+                    <table class="orders-table simple-order-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="simple-order-management-body">
+                            <tr>
+                                <td colspan="8" class="loading">Loading orders... <i class="fas fa-spinner fa-spin"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Return/Refund Management Section -->
+                <div class="return-refund-management orders-table-container">
+                    <h3><i class="fas fa-redo"></i> Return/Refund Requests <button class="open-order-mgmt-btn" onclick="loadReturnRefundManagement()">Refresh Requests</button></h3>
+
+                    <table class="orders-table return-requests-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Reason 1</th>
+                                <th>Reason 2</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="return-requests-table-body">
+                            <tr>
+                                <td colspan="7" class="loading">Loading return requests... <i class="fas fa-spinner fa-spin"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="modal" id="cancel-reason-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Cancel Order Reason</h3>
+                        <button class="close-modal" onclick="closeCancelReasonModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Reason for Cancellation</label>
+                            <textarea id="cancel-reason-text" rows="4" placeholder="Enter reason (e.g., Customer requested, Out of stock, etc.)"></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="submit-btn" onclick="confirmCancelOrder()">Cancel Order</button>
+                            <button class="back-btn" onclick="closeCancelReasonModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return/Refund Request Modal -->
+            <div class="modal" id="return-request-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Request Return/Refund</h3>
+                        <button class="close-modal" onclick="closeReturnRequestModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin-bottom: 20px; color: #666;">Please provide two valid reasons for your return request:</p>
+                        <div class="form-group">
+                            <label>Reason 1</label>
+                            <select id="return-reason-1">
+                                <option value="">Select a reason</option>
+                                <option value="Defective/Damaged">Defective/Damaged Product</option>
+                                <option value="Not as Described">Not as Described</option>
+                                <option value="Wrong Item">Wrong Item Received</option>
+                                <option value="Changed Mind">Changed Mind</option>
+                                <option value="Quality Issue">Quality Issue</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Reason 2</label>
+                            <select id="return-reason-2">
+                                <option value="">Select a reason</option>
+                                <option value="Defective/Damaged">Defective/Damaged Product</option>
+                                <option value="Not as Described">Not as Described</option>
+                                <option value="Wrong Item">Wrong Item Received</option>
+                                <option value="Changed Mind">Changed Mind</option>
+                                <option value="Quality Issue">Quality Issue</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Additional Details (Optional)</label>
+                            <textarea id="return-details" rows="3" placeholder="Add any additional information..."></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="submit-btn" onclick="submitReturnRequest()">Submit Return Request</button>
+                            <button class="back-btn" onclick="closeReturnRequestModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chatbot-toggle" onclick="toggleChatbot()">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="chatbot-container" id="chatbot">
+            <div class="chatbot-header">
+                <h4><i class="fas fa-robot"></i> AI Assistant</h4>
+                <button onclick="toggleChatbot()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chatbot-messages" id="chatbot-messages">
+                <div class="message bot-message">
+                    <i class="fas fa-robot"></i>
+                    <p>Hi! Need ribbon colors or donut flavors help?</p>
+                </div>
+            </div>
+            <div class="chatbot-input">
+                <input type="text" id="chat-input" placeholder="Ask me anything..." onkeypress="handleChatKeypress(event)">
+                <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+            
+            <div class="modal" id="customer-login-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Customer Login</h3>
+                    <button class="close-modal" onclick="closeCustomerLoginModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="login-form">
+                        <div class="form-group">
+                            <label>Gmail Address</label>
+                            <input type="email" id="customer-gmail" placeholder="yourname@gmail.com">
+                            <small>Use @gmail.com domain</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="customer-password" placeholder="Enter your password">
+                        </div>
+                        <button class="submit-btn" onclick="customerLogin()">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </button>
+                        <p class="register-link">Don't have an account? <a href="#" onclick="switchToCustomerRegisterModal()">Register here</a></p>
+                        <p class="register-link" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">Are you an owner? <a href="#" onclick="switchToOwnerLoginModal()">Login as Owner</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            
+            <div class="modal" id="customer-register-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Customer Registration</h3>
+                    <button class="close-modal" onclick="closeCustomerRegisterModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="login-form">
+                        <div class="form-group">
+                            <label>Gmail Address</label>
+                            <input type="email" id="register-gmail" placeholder="yourname@gmail.com">
+                            <small>Use @gmail.com domain</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="register-password" placeholder="Create a password (min 6 characters)">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" id="register-confirm-password" placeholder="Confirm your password">
+                        </div>
+                        <button class="submit-btn" onclick="customerRegister()">
+                            <i class="fas fa-user-plus"></i> Register
+                        </button>
+                        <p class="register-link">Already have an account? <a href="#" onclick="switchToCustomerLoginModal()">Login here</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            
+            <div class="modal" id="otp-verification-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Verify Your Email</h3>
+                    <button class="close-modal" onclick="closeOtpVerificationModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="login-form">
+                        <p style="text-align: center; margin-bottom: 20px; color: #666;">
+                            We've sent a 6-digit code to <strong id="otp-email-display"></strong>
+                        </p>
+                        <div class="form-group">
+                            <label>Enter OTP Code</label>
+                            <input type="text" id="otp-code" placeholder="000000" maxlength="6" inputmode="numeric">
+                            <small>Check your email for the verification code</small>
+                        </div>
+                        <button class="submit-btn" onclick="verifyRegistrationOtp()">
+                            <i class="fas fa-check"></i> Verify & Complete Registration
+                        </button>
+                        <p class="register-link" style="margin-top: 15px; text-align: center;">
+                            <a href="#" onclick="showCustomerRegisterModal()">Back to Registration</a>
+                        </p>
+                        <p style="text-align: center; font-size: 12px; color: #999; margin-top: 10px;">
+                            Didn't receive the code? Check your spam folder
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            
+            <div class="modal" id="owner-login-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Owner Login</h3>
+                    <button class="close-modal" onclick="closeOwnerLoginModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="login-form">
+                        <div class="form-group">
+                            <label>Gmail Address</label>
+                            <input type="email" id="owner-gmail" placeholder="admin@juana.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="owner-password" placeholder="Enter password">
+                        </div>
+                        <button class="submit-btn" onclick="ownerLogin()">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </button>
+                        <p class="register-link" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">Are you a customer? <a href="#" onclick="switchToCustomerLoginModal()">Login as Customer</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+            
+            <div class="modal" id="product-modal">
+            <div class="modal-content product-detail-modal">
+                <div class="modal-header">
+                    <h3 id="modal-product-name">Product Details</h3>
+                    <button class="close-modal" onclick="closeProductModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="product-detail-grid">
+                        <div class="product-image-section">
+                            <img id="modal-product-image" src="" alt="Product">
+                        </div>
+                        <div class="product-options-section">
+                            <p id="modal-product-category" class="product-category"></p>
+                            <p id="modal-product-price" class="product-price"></p>
+                            
+                            <div class="form-group">
+                                <label>Quantity</label>
+                                <select id="modal-quantity">
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="color-select-group" style="display:none;">
+                                <label>Color</label>
+                                <select id="modal-color">
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="flavor-select-group" style="display:none;">
+                                <label>Flavor</label>
+                                <select id="modal-flavor">
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="addon-select-group" style="display:none;">
+                                <label>Add-ons</label>
+                                <div class="checkbox-group" id="modal-addons">
+                                </div>
+                            </div>
+                            
+                            <button class="add-to-cart-btn" onclick="addToCartFromModal()">
+                                <i class="fas fa-cart-plus"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="edit-modal">
+            <div class="modal-content edit-modal-content">
+                <div class="modal-header">
+                    <h3 id="edit-modal-title">Edit</h3>
+                    <button class="close-modal" onclick="closeEditModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="price-edit-form" style="display:none;">
+                        <div class="form-group">
+                            <label>Product</label>
+                            <input type="text" id="edit-product-name" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity</label>
+                            <select id="edit-quantity"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>New Price (₹)</label>
+                            <input type="number" id="edit-price-value" placeholder="Enter new price">
+                        </div>
+                        <button class="submit-btn" onclick="savePriceEdit()">
+                            <i class="fas fa-save"></i> Save Price
+                        </button>
+                    </div>
+                    <div id="stock-edit-form" style="display:none;">
+                        <div class="form-group">
+                            <label>Product</label>
+                            <input type="text" id="edit-stock-product-name" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Variant (Flavor/Color)</label>
+                            <input type="text" id="edit-stock-variant-display" disabled style="background: #e8f4f8; font-weight: bold;">
+                        </div>
+                        <div class="form-group">
+                            <label>Current Stock</label>
+                            <input type="text" id="edit-current-stock" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>New Stock</label>
+                            <input type="number" id="edit-stock-value" placeholder="Enter new stock">
+                        </div>
+                        <input type="hidden" id="edit-stock-variant" value="DEFAULT">
+                        <button class="submit-btn" onclick="saveStockEdit()">
+                            <i class="fas fa-save"></i> Save Stock
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="image-identify-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>AI Product Identification</h3>
+                    <button class="close-modal" onclick="closeImageModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="upload-area" id="upload-area">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Click or drag image here</p>
+                        <input type="file" id="image-upload" accept="image/*" onchange="previewImage(event)">
+                    </div>
+                    <div id="image-preview" style="display:none;">
+                        <img id="preview-img" src="" alt="Preview">
+                        <button class="identify-btn" onclick="identifyProduct()">
+                            <i class="fas fa-search"></i> Identify Product
+                        </button>
+                    </div>
+                    <div id="identify-result" style="display:none;">
+                        <p id="result-text"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="modal" id="checkout-modal">
+            <div class="modal-content checkout-modal-content">
+                <div class="modal-header">
+                    <h3>Checkout</h3>
+                    <button class="close-modal" onclick="closeCheckoutModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="checkout-steps">
+                        <div class="checkout-step active" data-step="1">
+                            <span class="step-number">1</span>
+                            <span class="step-label">Delivery Method</span>
+                        </div>
+                        <div class="checkout-step" data-step="2">
+                            <span class="step-number">2</span>
+                            <span class="step-label">Details</span>
+                        </div>
+                        <div class="checkout-step" data-step="3">
+                            <span class="step-number">3</span>
+                            <span class="step-label">Payment</span>
+                        </div>
+                        <div class="checkout-step" data-step="4">
+                            <span class="step-number">4</span>
+                            <span class="step-label">Receipt</span>
+                        </div>
+                    </div>
+
+                    
+                    <div class="checkout-step-content active" id="checkout-step-1">
+                        <h4>Choose Delivery Method</h4>
+                        <div class="method-options">
+                            <label class="method-option">
+                                <input type="radio" name="delivery-method" value="delivery" onchange="selectDeliveryMethod(this.value)">
+                                <div class="method-card">
+                                    <i class="fas fa-shipping-fast"></i>
+                                    <span>Delivery</span>
+                                    <small>+₱50 delivery fee</small>
+                                </div>
+                            </label>
+                            <label class="method-option">
+                                <input type="radio" name="delivery-method" value="pickup" onchange="selectDeliveryMethod(this.value)">
+                                <div class="method-card">
+                                    <i class="fas fa-store"></i>
+                                    <span>Pickup</span>
+                                    <small>No delivery fee</small>
+                                </div>
+                            </label>
+                        </div>
+                        <button class="submit-btn" onclick="goToCheckoutStep2()" id="method-next-btn" disabled>
+                            Continue <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+
+                    
+                    <div class="checkout-step-content" id="checkout-step-2">
+                        <div id="delivery-details" style="display:none;">
+                            <h4>Delivery Details</h4>
+                            <div class="form-group">
+                                <label>Delivery Address</label>
+                                <textarea id="delivery-address" placeholder="Enter your complete delivery address" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Select Date</label>
+                                <input type="date" id="order-date" onchange="loadAvailableSlots()">
+                            </div>
+                            <div class="form-group">
+                                <label>Select Time</label>
+                                <select id="order-time">
+                                    <option value="">Select a date first</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="pickup-details" style="display:none;">
+                            <h4>Pickup Details</h4>
+                            <div class="form-group">
+                                <label>Select Date</label>
+                                <input type="date" id="order-date-pickup" onchange="loadAvailableSlotsPickup()">
+                            </div>
+                            <div class="form-group">
+                                <label>Select Time</label>
+                                <select id="order-time-pickup">
+                                    <option value="">Select a date first</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="checkout-order-summary">
+                            <h4>Order Summary</h4>
+                            <div id="checkout-cart-items"></div>
+                            <div class="summary-line">
+                                <span>Subtotal:</span>
+                                <span id="checkout-subtotal">₱0</span>
+                            </div>
+                            <div class="summary-line" id="checkout-delivery-fee-line" style="display:none;">
+                                <span>Delivery Fee:</span>
+                                <span id="checkout-delivery-fee">₱50</span>
+                            </div>
+                            <div class="summary-line total">
+                                <span>Total:</span>
+                                <span id="checkout-total">₱0</span>
+                            </div>
+                        </div>
+                        <div class="checkout-nav">
+                            <button class="submit-btn" onclick="goToCheckoutStep3()" id="details-next-btn" disabled>
+                                Continue <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    
+                    <div class="checkout-step-content" id="checkout-step-3">
+                        <h4>Select Payment Method</h4>
+                        <div class="payment-options">
+                            <label class="payment-option">
+                                <input type="radio" name="payment-method" value="gcash" onchange="selectPaymentMethod(this.value)">
+                                <div class="payment-card">
+                                    <i class="fas fa-qrcode"></i>
+                                    <span>GCash</span>
+                                    <small>Scan QR to pay</small>
+                                </div>
+                            </label>
+                            <label class="payment-option">
+                                <input type="radio" name="payment-method" value="cash" onchange="selectPaymentMethod(this.value)">
+                                <div class="payment-card">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <span>Cash</span>
+                                    <small>Pay upon delivery/pickup</small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="gcash-qr-section" style="display:none;">
+                            <div class="gcash-qr-display">
+                                <img src="/static/images/gcash-qr.jpg" alt="GCash QR Code" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                <div class="qr-placeholder" style="display:none;">
+                                    <i class="fas fa-qrcode"></i>
+                                    <p>GCash QR Code</p>
+                                </div>
+                                <p class="qr-amount">Total: <span id="gcash-amount">₱0</span></p>
+                                <p class="qr-instruction">Scan this QR code using your GCash app</p>
+                            </div>
+                        </div>
+
+                        <div class="checkout-nav">
+                            <button class="submit-btn" onclick="processOrder()" id="payment-next-btn" disabled>
+                                Place Order <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    
+                    <div class="checkout-step-content" id="checkout-step-4">
+                        <div class="receipt-container" id="receipt">
+                            <div class="receipt-header">
+                                <h2>JUANA'S RIBBON</h2>
+                                <p class="receipt-subtitle">RECEIPT</p>
+                            </div>
+                            <div class="receipt-details">
+                                <p><strong>Order ID:</strong> <span id="receipt-order-id"></span></p>
+                                <p><strong>Date:</strong> <span id="receipt-date"></span></p>
+                                <p><strong>Customer:</strong> <span id="receipt-customer"></span></p>
+                            </div>
+                            <div class="receipt-items">
+                                <h4>ITEMS:</h4>
+                                <div id="receipt-items-list"></div>
+                            </div>
+                            <div class="receipt-totals">
+                                <div class="receipt-line">
+                                    <span>SUBTOTAL:</span>
+                                    <span id="receipt-subtotal"></span>
+                                </div>
+                                <div class="receipt-line" id="receipt-delivery-fee-line">
+                                    <span>Delivery Fee:</span>
+                                    <span id="receipt-delivery-fee"></span>
+                                </div>
+                                <div class="receipt-line total">
+                                    <span>TOTAL:</span>
+                                    <span id="receipt-total"></span>
+                                </div>
+                            </div>
+                            <div class="receipt-payment">
+                                <p><strong>PAYMENT:</strong> <span id="receipt-payment"></span></p>
+                                <p id="receipt-delivery-info"><strong>Delivery:</strong> <span id="receipt-address"></span></p>
+                                <p id="receipt-time-info"><strong>Time:</strong> <span id="receipt-time"></span></p>
+                            </div>
+                            <div class="receipt-footer">
+                                <p>Thank you for your order!</p>
+                            </div>
+                        </div>
+                        <div class="receipt-actions">
+                            <button class="submit-btn" onclick="printReceipt()">
+                                <i class="fas fa-print"></i> Print Receipt
+                            </button>
+                            <button class="back-btn" onclick="finishOrder()">
+                                Done <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="customer-receipt-modal">
+            <div class="modal-content checkout-modal-content">
+                <div class="modal-header">
+                    <h3>Order Receipt</h3>
+                    <button class="close-modal" onclick="closeCustomerReceiptModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="receipt-container" id="customer-receipt">
+                        <div class="receipt-header">
+                            <h2>JUANA'S RIBBON</h2>
+                            <p class="receipt-subtitle">RECEIPT</p>
+                        </div>
+                        <div class="receipt-details">
+                            <p><strong>Order ID:</strong> <span id="customer-receipt-order-id"></span></p>
+                            <p><strong>Date:</strong> <span id="customer-receipt-date"></span></p>
+                            <p><strong>Customer:</strong> <span id="customer-receipt-customer"></span></p>
+                        </div>
+                        <div class="receipt-items">
+                            <h4>ITEMS:</h4>
+                            <div id="customer-receipt-items-list"></div>
+                        </div>
+                        <div class="receipt-totals">
+                            <div class="receipt-line">
+                                <span>SUBTOTAL:</span>
+                                <span id="customer-receipt-subtotal"></span>
+                            </div>
+                            <div class="receipt-line" id="customer-receipt-delivery-fee-line">
+                                <span>Delivery Fee:</span>
+                                <span id="customer-receipt-delivery-fee"></span>
+                            </div>
+                            <div class="receipt-line total">
+                                <span>TOTAL:</span>
+                                <span id="customer-receipt-total"></span>
+                            </div>
+                        </div>
+                        <div class="receipt-payment">
+                            <p><strong>PAYMENT:</strong> <span id="customer-receipt-payment"></span></p>
+                        </div>
+                        <div class="receipt-delivery-info" id="customer-receipt-delivery-info" style="display:none;">
+                            <p><strong>Address:</strong> <span id="customer-receipt-address"></span></p>
+                            <p id="customer-receipt-time-info"><strong>Delivery Time:</strong> <span id="customer-receipt-time"></span></p>
+                        </div>
+                        <div class="receipt-footer">
+                            <p>Thank you for your order!</p>
+                        </div>
+                    </div>
+                    <div class="receipt-actions">
+                        <button class="submit-btn" onclick="printCustomerReceiptModal()">
+                            <i class="fas fa-print"></i> Print Receipt
+                        </button>
+                        <button class="back-btn" onclick="closeCustomerReceiptModal()">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="account-settings-modal">
+            <div class="modal-content edit-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-cog"></i> Account Settings</h3>
+                    <button class="close-modal" onclick="closeAccountSettingsModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="account-settings-form">
+                        <div class="form-group">
+                            <label>Current Gmail</label>
+                            <input type="email" id="modal-current-gmail" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>New Gmail Address</label>
+                            <input type="email" id="modal-new-gmail" placeholder="newemail@gmail.com">
+                            <small>Use @gmail.com domain</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="modal-current-password" placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="modal-new-password" placeholder="Enter new password (min 6 characters)">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="modal-confirm-password" placeholder="Confirm new password">
+                        </div>
+                        <button class="submit-btn" onclick="updateOwnerAccountFromModal()">
+                            <i class="fas fa-save"></i> Update Account
+                        </button>
+                        <p class="settings-note"><i class="fas fa-info-circle"></i> Note: You will be logged out after updating. Please login with new credentials.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OWNER EMAIL CHANGE OTP VERIFICATION MODAL -->
+        <div class="modal" id="owner-email-otp-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Verify Email Change</h3>
+                    <button class="close-modal" onclick="closeOwnerEmailOtpModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="login-form">
+                        <p style="text-align: center; margin-bottom: 20px; color: #666;">
+                            We've sent a 6-digit verification code to <strong id="owner-otp-email-display"></strong>
+                        </p>
+                        <div class="form-group">
+                            <label>Enter OTP Code</label>
+                            <input type="text" id="owner-otp-code" placeholder="000000" maxlength="6" inputmode="numeric">
+                            <small>Check your email for the verification code</small>
+                        </div>
+                        <button class="submit-btn" onclick="verifyOwnerEmailChange()">
+                            <i class="fas fa-check"></i> Verify & Update Account
+                        </button>
+                        <p class="register-link" style="margin-top: 15px; text-align: center;">
+                            <a href="#" onclick="closeOwnerEmailOtpModal(); openAccountSettingsModal()">Back to Account Settings</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="product-management-modal">
+            <div class="modal-content product-management-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-boxes"></i> Product Management</h3>
+                    <button class="close-modal" onclick="closeProductManagementModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="product-management-tabs">
+                        <button class="tab-btn active" onclick="switchProductManagementTab('manage')" id="pm-tab-manage">
+                            <i class="fas fa-cogs"></i> Manage Products
+                        </button>
+                        <button class="tab-btn" onclick="switchProductManagementTab('add')" id="pm-tab-add">
+                            <i class="fas fa-plus-circle"></i> Add New Product
+                        </button>
+                        <button class="tab-btn" onclick="switchProductManagementTab('categories')" id="pm-tab-categories">
+                            <i class="fas fa-tags"></i> Manage Categories
+                        </button>
+                    </div>
+                    
+                    
+                    <div id="pm-manage-tab" class="pm-tab-content active">
+                    <div class="pm-filters">
+                            <input type="text" id="pm-search" placeholder="Search products..." oninput="filterProductManagementProducts()" class="pm-search-full">
+                        </div>
+                        <div class="pm-products-list" id="pm-products-list">
+                            
+                        </div>
+                    </div>
+
+                    <div id="pm-add-tab" class="pm-tab-content">
+                        <div class="pm-add-form">
+                            <div class="form-group">
+                                <label>Product Name</label>
+                                <input type="text" id="new-product-name" placeholder="Enter product name">
+                            </div>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select id="new-product-category">
+                                    <option value="">Select Category</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Prices (quantity:price, one per line)</label>
+                                <textarea id="new-product-prices" rows="4" placeholder="1:149&#10;3:299&#10;5:449"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Product Type</label>
+                                <select id="new-product-type" onchange="toggleVariantInput()">
+                                    <option value="color">Has Colors (Ribbon Flowers)</option>
+                                    <option value="flavor">Has Flavors (Donuts)</option>
+                                    <option value="none">No Variants</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="new-product-colors-group">
+                                <label>Colors (one per line)</label>
+                                <textarea id="new-product-colors" rows="4" placeholder="RED&#10;BLUE&#10;PINK"></textarea>
+                            </div>
+                            <div class="form-group" id="new-product-flavors-group" style="display:none;">
+                                <label>Flavors (one per line)</label>
+                                <textarea id="new-product-flavors" rows="4" placeholder="CHOCOLATE&#10;VANILLA&#10;STRAWBERRY"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Product Image</label>
+                                <div class="image-upload-container">
+                                    <div class="image-upload-options">
+                                        <label class="image-upload-option">
+                                            <input type="radio" name="image-upload-type" value="file" checked onchange="toggleImageUploadType()">
+                                            <i class="fas fa-upload"></i> Upload Image
+                                        </label>
+                                        <label class="image-upload-option">
+                                            <input type="radio" name="image-upload-type" value="url" onchange="toggleImageUploadType()">
+                                            <i class="fas fa-link"></i> Use Filename
+                                        </label>
+                                    </div>
+                                    <div id="image-file-input-group">
+                                        <input type="file" id="new-product-image-file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" onchange="previewUploadedImage(event)">
+                                        <div id="image-preview-container" style="display: none;">
+                                            <img id="uploaded-image-preview" src="" alt="Preview">
+                                            <button type="button" class="remove-image-btn" onclick="removeUploadedImage()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <small>Accepted: jpg, jpeg, png, gif, webp</small>
+                                    </div>
+                                    <div id="image-url-input-group" style="display: none;">
+                                        <input type="text" id="new-product-image" placeholder="product.jpg">
+                                        <small>Place image in /static/images/ folder</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Base Stock (Initial DEFAULT variant)</label>
+                                <input type="number" id="new-product-base-stock" min="0" value="50" placeholder="Initial stock quantity">
+                                <small>Sets DEFAULT variant stock when creating product</small>
+                            </div>
+                            <button class="submit-btn" onclick="addNewProduct()">
+                                <i class="fas fa-plus-circle"></i> Add Product
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="pm-categories-tab" class="pm-tab-content">
+                        <div class="pm-add-form">
+                            <div class="form-group">
+                                <label>New Category Name</label>
+                                <input type="text" id="new-category-name" placeholder="Enter category name">
+                            </div>
+                            <button class="submit-btn" onclick="addNewCategory()">
+                                <i class="fas fa-plus"></i> Add Category
+                            </button>
+                        </div>
+                        <div class="categories-list" id="categories-list" style="margin-top: 20px; max-height: 300px; overflow-y: auto;">
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        
+
+<div class="modal" id="variant-management-modal">
+            <div class="modal-content edit-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-palette"></i> Manage Variants - <span id="variant-modal-product-name"></span></h3>
+                    <button class="close-modal" onclick="closeVariantManagementModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="variant-type-info" id="variant-type-info">
+                        
+                    </div>
+                    <div class="add-variant-form">
+                        <div class="form-group">
+                            <label id="add-variant-label">Add New Color</label>
+                            <input type="text" id="new-variant-name" placeholder="Enter color/flavor name">
+                        </div>
+                        <button class="submit-btn" onclick="addVariant()">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <div class="current-variants-list" id="current-variants-list">
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="modal" id="bundle-modal">
+            <div class="modal-content bundle-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-gift"></i> Create Custom Bundle (2-10 items)</h3>
+                    <button class="close-modal" onclick="closeBundleModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="bundle-info">Select 2-10 products for your bundle. Each product can have different colors/flavors!</p>
+                    <div class="bundle-items-container" id="bundle-items-container">
+                        
+                    </div>
+                    <button class="add-bundle-item-btn" onclick="addBundleItem()">
+                        <i class="fas fa-plus"></i> Add Product to Bundle
+                    </button>
+                    <div class="bundle-summary">
+                        <div class="bundle-total">
+                            <span>Bundle Total:</span>
+                            <span id="bundle-total-price">₱0</span>
+                        </div>
+                    </div>
+                    <button class="submit-btn" id="add-bundle-to-cart-btn" onclick="addBundleToCart()" disabled>
+                        <i class="fas fa-cart-plus"></i> Add Bundle to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+
+            <footer class="main-footer">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h4>Juana's Ribbon</h4>
+                        <p>Beautiful ribbon flowers and delicious donuts</p>
+                    </div>
+                    <div class="footer-section">
+                        <h4>Quick Links</h4>
+                        <a href="#" onclick="showPage('welcome')">Home</a>
+                        <a href="#" onclick="showPage('products')">Products</a>
+                        <a href="#" onclick="showImageModal()">AI Identify</a>
+                    </div>
+                    <div class="footer-section">
+                        <h4>Contact</h4>
+                        <p><i class="fas fa-envelope"></i> info@juana.com</p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2024 Juana's Ribbon. All rights reserved.</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+    
+    <!-- LOGOUT CONFIRMATION MODAL -->
+    <div class="modal" id="logout-confirmation-modal">
+        <div class="modal-content logout-modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-sign-out-alt"></i> Confirm Logout</h3>
+                <button class="close-modal" onclick="closeLogoutConfirmation()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="logout-confirmation-message">
+                    <i class="fas fa-question-circle"></i>
+                    <p>Are you sure you want to log out?</p>
+                </div>
+                <div class="logout-confirmation-actions">
+                    <button class="confirm-logout-btn" onclick="confirmLogout()">
+                        <i class="fas fa-check"></i> Yes, Log Out
+                    </button>
+                    <button class="cancel-logout-btn" onclick="closeLogoutConfirmation()">
+                        <i class="fas fa-times"></i> No, Stay Logged In
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT USERNAME MODAL -->
+    <div class="modal" id="edit-username-modal">
+        <div class="modal-content edit-modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Edit Username</h3>
+                <button class="close-modal" onclick="closeEditUsernameModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="username-input">New Username</label>
+                    <input type="text" id="username-input" placeholder="Enter your new username" maxlength="30">
+                    <small>Leave empty to keep current username</small>
+                </div>
+                <div class="form-actions">
+                    <button class="submit-btn" onclick="saveUsername()">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button class="cancel-btn" onclick="closeEditUsernameModal()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div class="modal" id="change-password-modal">
+        <div class="modal-content edit-modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-lock"></i> Change Password</h3>
+                <button class="close-modal" onclick="closeChangePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="password-change-step-1" class="password-step">
+                    <div class="form-group">
+                        <label>Send OTP to your email to verify your identity</label>
+                        <button class="submit-btn" onclick="requestPasswordChangeOTP()">
+                            <i class="fas fa-paper-plane"></i> Send OTP
+                        </button>
+                    </div>
+                </div>
+
+                <div id="password-change-step-2" class="password-step" style="display:none;">
+                    <div class="form-group">
+                        <label for="otp-input">Enter OTP Code</label>
+                        <input type="text" id="otp-input" placeholder="Enter 6-digit OTP" maxlength="6">
+                        <small>Check your email for the OTP code</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password-input">New Password</label>
+                        <input type="password" id="new-password-input" placeholder="Enter new password (min. 6 characters)">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password-input">Confirm New Password</label>
+                        <input type="password" id="confirm-password-input" placeholder="Confirm new password">
+                    </div>
+                    <div class="form-actions">
+                        <button class="submit-btn" onclick="verifyOTPAndChangePassword()">
+                            <i class="fas fa-check"></i> Change Password
+                        </button>
+                        <button class="cancel-btn" onclick="closeChangePasswordModal()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Messages Modal -->
+        <div id="messages-modal" class="modal" style="display: none;">
+            <div class="modal-content messages-modal-content">
+                <button class="close-modal" onclick="closeMessagesModal()">&times;</button>
+                <h2><i class="fas fa-envelope"></i> Messages</h2>
+                
+                <div class="messages-container">
+                    <div class="conversations-list" id="conversations-list">
+                        <div class="new-conversation-section">
+                            <h4><i class="fas fa-plus-circle"></i> New Conversation</h4>
+                            <div class="new-conversation-form">
+                                <input type="email" id="new-conversation-email" placeholder="Enter @gmail.com address...">
+                                <button onclick="startNewConversation()" class="start-chat-btn">
+                                    <i class="fas fa-paper-plane"></i> Start Chat
+                                </button>
+                            </div>
+                            <div class="owner-message-section">
+                                <p class="divider">or</p>
+                                <button onclick="messageOwner()" class="message-owner-btn">
+                                    <i class="fas fa-star"></i> Message Owner
+                                </button>
+                            </div>
+                        </div>
+                        <div id="conversations-items">
+                            <!-- Conversations will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="messages-chat" id="messages-chat" style="display: none;">
+                        <div class="messages-header">
+                            <button class="back-to-conversations" onclick="backToConversations()">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <h3 id="chat-with-user">Select a conversation</h3>
+                        </div>
+                        
+                        <div class="messages-body" id="messages-body">
+                            <!-- Messages will be loaded here -->
+                        </div>
+                        
+                        <div class="messages-input">
+                            <input type="text" id="message-input" placeholder="Type your message..." 
+                                   onkeypress="handleMessageKeyPress(event)">
+                            <button onclick="sendMessage()" class="send-message-btn">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/frontend/static.js"></script>
+</body>
+
+</html>

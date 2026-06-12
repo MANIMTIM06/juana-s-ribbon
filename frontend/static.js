@@ -44,7 +44,7 @@ let notificationTracking = {
 let currentNotifications = [];
 
 const CURRENCY = '₱';
-const API_URL = 'http://localhost:8000';
+const API_URL = '';
 const DELIVERY_FEE = 50;
 
 async function fetchProducts() {
@@ -1898,7 +1898,7 @@ function sendChatMessage() {
     // Get customer email if logged in
     const customerEmail = currentUser && currentUser.gmail ? currentUser.gmail : 'guest';
 
-    fetch('http://localhost:8000/chat', {
+    fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({message: message, customer_email: customerEmail})

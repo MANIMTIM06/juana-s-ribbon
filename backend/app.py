@@ -2204,6 +2204,17 @@ def chat():
             })
             return bot_response
         
+        if any(word in lower_msg for word in ['new', 'latest', 'recent', 'newest']):
+            bot_response = get_new_products_info()
+            resp_data = bot_response.get_json()
+            messages_collection.insert_one({
+                'customer_email': customer_email,
+                'type': 'bot',
+                'message': resp_data['response'],
+                'timestamp': datetime.now().isoformat()
+            })
+            return bot_response
+        
         if any(word in lower_msg for word in ['hello', 'hi', 'hey', 'help']):
             response = "Hi! I'm Juana's AI Assistant! I can help you with:\n- Browse our gorgeous products\n- Find items in your budget\n- Show available colors & flavors\n- Give you pricing info\n\nWhat would you like to know?"
             messages_collection.insert_one({
@@ -2431,6 +2442,48 @@ def get_variants_info():
         return jsonify({'response': response})
     except Exception as e:
         return jsonify({'response': f"Error loading variants: {str(e)}"})
+
+def get_new_products_info():
+    """Get new/featured products information"""
+    try:
+        products = list(products_collection.find())
+        if not products:
+            return jsonify({'response': "No products found!"})
+        
+        # Get the most recently added products (last 5-6)
+        new_products = products[-6:] if len(products) >= 6 else products
+        
+        response = "✨ NEW & FEATURED PRODUCTS:\n"
+        response += "=" * 50 + "\n\n"
+        
+        for product in new_products:
+            min_price = min(product.get('prices', {1: 0}).values()) if product.get('prices') else 0
+            category = product.get('category', 'Other')
+            colors = product.get('colors', [])
+            flavors = product.get('flavors', [])
+            
+            response += f"🎀 {product['name'].upper()}\n"
+            response += f"   Category: {category}\n"
+            response += f"   Starting Price: {min_price} pesos\n"
+            
+            if colors:
+                color_text = ', '.join(colors[:4])
+                if len(colors) > 4:
+                    color_text += f" + {len(colors) - 4} more"
+                response += f"   Colors: {color_text}\n"
+            
+            if flavors:
+                flavor_text = ', '.join(flavors[:4])
+                if len(flavors) > 4:
+                    flavor_text += f" + {len(flavors) - 4} more"
+                response += f"   Flavors: {flavor_text}\n"
+            
+            response += "\n"
+        
+        response += "💡 TIP: Ask for specific quantities or type a budget like '500 pesos' for recommendations!"
+        return jsonify({'response': response})
+    except Exception as e:
+        return jsonify({'response': f"Error loading new products: {str(e)}"})
 
 @app.route('/image-identify', methods=['POST'])
 def image_identify():

@@ -75,7 +75,7 @@ def generate_otp(length=OTP_LENGTH):
     """Generate a random OTP code"""
     return ''.join(random.choices(string.digits, k=length))
 
-def sendotpemail(email, otp, purpose="registration"):
+def send_otp_email(email, otp, purpose="registration"):
     if purpose == "registration":
         subject = "Juana's Ribbon - Email Verification OTP"
         body = f"""
@@ -457,7 +457,7 @@ def customer_register():
     save_otp(gmail, otp, purpose='registration')
     
     # Send OTP email
-    email_sent = sendotpemail(gmail, otp, purpose='registration')
+    email_sent = send_otp_email(gmail, otp, purpose='registration')
     
     if not email_sent:
         return jsonify({'success': False, 'message': 'Failed to send OTP email. Please try again.'})

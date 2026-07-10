@@ -84,7 +84,7 @@ def sendotpemail(email, otp, purpose="registration"):
                 <p>Hi there!</p>
                 <p>Welcome to Juana's Ribbon!</p>
                 <p>Your OTP code is: <b>{otp}</b></p>
-                <p>This code will expire in {OTPEXPIRYMINUTES} minutes.</p>
+                <p>This code will expire in {OTP_EXPIRY_MINUTES} minutes.</p>
                 <p>If you didn't request this code, please ignore this email.</p>
                 <br>
                 <p>Best regards,<br>Juana's Ribbon Team</p>
@@ -99,7 +99,7 @@ def sendotpemail(email, otp, purpose="registration"):
                 <p>Hi there!</p>
                 <p>To change your email address, please use the following OTP code:</p>
                 <p><b>{otp}</b></p>
-                <p>This code will expire in {OTPEXPIRYMINUTES} minutes.</p>
+                <p>This code will expire in {OTP_EXPIRY_MINUTES} minutes.</p>
                 <p>If you didn't request this change, please ignore this email and contact support.</p>
                 <br>
                 <p>Best regards,<br>Juana's Ribbon Team</p>
@@ -114,7 +114,7 @@ def sendotpemail(email, otp, purpose="registration"):
                 <p>Hi there!</p>
                 <p>To change your password, please use the following OTP code:</p>
                 <p><b>{otp}</b></p>
-                <p>This code will expire in {OTPEXPIRYMINUTES} minutes.</p>
+                <p>This code will expire in {OTP_EXPIRY_MINUTES} minutes.</p>
                 <p>If you didn't request this change, please ignore this email and contact support immediately.</p>
                 <br>
                 <p>Best regards,<br>Juana's Ribbon Team</p>

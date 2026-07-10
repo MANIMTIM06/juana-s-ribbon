@@ -76,6 +76,7 @@ def generate_otp(length=OTP_LENGTH):
     return ''.join(random.choices(string.digits, k=length))
 
 def send_otp_email(email, otp, purpose="registration"):
+    print(f"[DEBUG] send_otp_email called with purpose={purpose!r}")
     if purpose == "registration":
         subject = "Juana's Ribbon - Email Verification OTP"
         body = f"""

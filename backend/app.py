@@ -35,7 +35,7 @@ app = Flask(__name__, static_folder='../static', template_folder='../frontend')
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "Juana's Ribbon")
-mail = Mail(app)
+
 
 # OTP Configuration
 OTP_EXPIRY_MINUTES = int(os.getenv('OTP_EXPIRY_MINUTES', 10))

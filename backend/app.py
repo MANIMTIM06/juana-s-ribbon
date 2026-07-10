@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from flask_mail import Mail, Message
+import requests
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta

@@ -91,7 +91,7 @@ def send_otp_email(email, otp, purpose="registration"):
             </body>
         </html>
         """
-    elif purpose == "changeemail":
+    elif purpose == "change_email":
         subject = "Juana's Ribbon - Email Change Verification OTP"
         body = f"""
         <html>
@@ -106,7 +106,7 @@ def send_otp_email(email, otp, purpose="registration"):
             </body>
         </html>
         """
-    elif purpose == "passwordchange":
+    elif purpose == "password_change":
         subject = "Juana's Ribbon - Password Change OTP"
         body = f"""
         <html>

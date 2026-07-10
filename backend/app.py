@@ -32,13 +32,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 app = Flask(__name__, static_folder='../static', template_folder='../frontend')
 
 # Flask-Mail Configuration
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', '')
-
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")
+BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "Juana's Ribbon")
 mail = Mail(app)
 
 # OTP Configuration
@@ -79,67 +75,86 @@ def generate_otp(length=OTP_LENGTH):
     """Generate a random OTP code"""
     return ''.join(random.choices(string.digits, k=length))
 
-def send_otp_email(email, otp, purpose='registration'):
-    """Send OTP via email"""
+def sendotpemail(email, otp, purpose="registration"):
+    if purpose == "registration":
+        subject = "Juana's Ribbon - Email Verification OTP"
+        body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <p>Hi there!</p>
+                <p>Welcome to Juana's Ribbon!</p>
+                <p>Your OTP code is: <b>{otp}</b></p>
+                <p>This code will expire in {OTPEXPIRYMINUTES} minutes.</p>
+                <p>If you didn't request this code, please ignore this email.</p>
+                <br>
+                <p>Best regards,<br>Juana's Ribbon Team</p>
+            </body>
+        </html>
+        """
+    elif purpose == "changeemail":
+        subject = "Juana's Ribbon - Email Change Verification OTP"
+        body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <p>Hi there!</p>
+                <p>To change your email address, please use the following OTP code:</p>
+                <p><b>{otp}</b></p>
+                <p>This code will expire in {OTPEXPIRYMINUTES} minutes.</p>
+                <p>If you didn't request this change, please ignore this email and contact support.</p>
+                <br>
+                <p>Best regards,<br>Juana's Ribbon Team</p>
+            </body>
+        </html>
+        """
+    elif purpose == "passwordchange":
+        subject = "Juana's Ribbon - Password Change OTP"
+        body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <p>Hi there!</p>
+                <p>To change your password, please use the following OTP code:</p>
+                <p><b>{otp}</b></p>
+                <p>This code will expire in {OTPEXPIRYMINUTES} minutes.</p>
+                <p>If you didn't request this change, please ignore this email and contact support immediately.</p>
+                <br>
+                <p>Best regards,<br>Juana's Ribbon Team</p>
+            </body>
+        </html>
+        """
+    else:
+        return False
+
+    if not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
+        print("Missing BREVO_API_KEY or BREVO_SENDER_EMAIL")
+        return False
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
+    payload = {
+        "sender": {
+            "name": BREVO_SENDER_NAME,
+            "email": BREVO_SENDER_EMAIL
+        },
+        "to": [
+            {
+                "email": email
+            }
+        ],
+        "subject": subject,
+        "htmlContent": body
+    }
+
     try:
-        if purpose == 'registration':
-            subject = 'Juana\'s Ribbon - Email Verification OTP'
-            body = f"""
-Hi there!
-
-Welcome to Juana's Ribbon! To complete your registration, please use the following OTP code:
-
-OTP CODE: {otp}
-
-This code will expire in {OTP_EXPIRY_MINUTES} minutes.
-
-If you didn't request this code, please ignore this email.
-
-Best regards,
-Juana's Ribbon Team
-            """
-        elif purpose == 'change_email':
-            subject = 'Juana\'s Ribbon - Email Change Verification OTP'
-            body = f"""
-Hi there!
-
-To change your email address, please use the following OTP code:
-
-OTP CODE: {otp}
-
-This code will expire in {OTP_EXPIRY_MINUTES} minutes.
-
-If you didn't request this change, please ignore this email and contact support.
-
-Best regards,
-Juana's Ribbon Team
-            """
-        elif purpose == 'password_change':
-            subject = 'Juana\'s Ribbon - Password Change OTP'
-            body = f"""
-Hi there!
-
-To change your password, please use the following OTP code:
-
-OTP CODE: {otp}
-
-This code will expire in {OTP_EXPIRY_MINUTES} minutes.
-
-If you didn't request this change, please ignore this email and contact support immediately.
-
-Best regards,
-Juana's Ribbon Team
-            """
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        if response.status_code in [200, 201]:
+            return True
         else:
+            print(f"Brevo send failed for {email}: {response.status_code} - {response.text}")
             return False
-        
-        msg = Message(
-            subject=subject,
-            recipients=[email],
-            body=body
-        )
-        mail.send(msg)
-        return True
     except Exception as e:
         print(f"Error sending OTP email to {email}: {str(e)}")
         return False

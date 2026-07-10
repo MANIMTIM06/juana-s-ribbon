@@ -457,7 +457,7 @@ def customer_register():
     save_otp(gmail, otp, purpose='registration')
     
     # Send OTP email
-   email_sent = sendotpemail(gmail, otp, purpose='registration')
+    email_sent = sendotpemail(gmail, otp, purpose='registration')
     
     if not email_sent:
         return jsonify({'success': False, 'message': 'Failed to send OTP email. Please try again.'})

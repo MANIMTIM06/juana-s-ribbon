@@ -44,7 +44,7 @@ let notificationTracking = {
 let currentNotifications = [];
 
 const CURRENCY = '₱';
-const API_URL = 'http://localhost:8000';
+const API_URL = '';
 const DELIVERY_FEE = 50;
 
 async function fetchProducts() {

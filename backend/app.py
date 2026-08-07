@@ -3015,6 +3015,58 @@ def get_notifications():
             'success': False,
             'message': f'Error retrieving notifications: {str(e)}'
         })
+@app.route("/mark-notifications-seen", methods=["POST"])
+def mark_notifications_seen():
+    try:
+        data = request.get_json(silent=True) or {}
+
+        gmail = data.get("gmail", "").strip().lower()
+        role = data.get("role", "").strip().lower()
+
+        if not gmail or not role:
+            return jsonify({
+                "success": False,
+                "message": "Gmail and role are required"
+            }), 400
+
+        notification_result = notificationscollection.update_many(
+            {
+                "recipient": gmail,
+                "read": False
+            },
+            {
+                "$set": {
+                    "read": True,
+                    "seenAt": datetime.now().isoformat()
+                }
+            }
+        )
+
+        message_result = messagescollection.update_many(
+            {
+                "recipient": gmail,
+                "read": False
+            },
+            {
+                "$set": {
+                    "read": True
+                }
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Notifications marked as seen",
+            "notifications_updated": notification_result.modified_count,
+            "messages_updated": message_result.modified_count
+        }), 200
+
+    except Exception as e:
+        print(f"Error marking notifications as seen: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Failed to mark notifications as seen"
+        }), 500
 
 # Return/Refund Feature Routes
 @app.route('/request-return', methods=['POST'])

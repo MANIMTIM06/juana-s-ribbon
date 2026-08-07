@@ -160,6 +160,7 @@ def send_otp_email(email, otp, purpose="registration"):
         print(f"Error sending OTP email to {email}: {str(e)}")
         return False
 
+
 def save_otp(email, otp, purpose='registration'):
     """Save OTP to database with expiry"""
     expiry_time = datetime.now() + timedelta(minutes=OTP_EXPIRY_MINUTES)
@@ -1711,6 +1712,7 @@ def add_new_product():
     colors = data.get('colors', [])
     flavors = data.get('flavors', [])
     image = data.get('image', 'default.jpg')
+    bundle_only = data.get('bundle_only', False)
     
     if not name or not category:
         return jsonify({'success': False, 'message': 'Name and category are required'})
@@ -1728,7 +1730,8 @@ def add_new_product():
         'name': name,
         'category': category.upper(),
         'prices': prices,
-        'image': image
+        'image': image,
+        'bundle_only': bool(bundle_only)
     }
     
     if colors:
@@ -1826,6 +1829,8 @@ def get_products_with_stock():
         customer_product = product.copy()
         owner_product = product.copy()
         
+        customer_product['bundle_only'] = product.get('bundle_only', False)
+        owner_product['bundle_only'] = product.get('bundle_only', False)
         customer_product['variants'] = []
         owner_product['variants'] = []
         owner_product['unavailable_variants'] = []
@@ -3015,58 +3020,6 @@ def get_notifications():
             'success': False,
             'message': f'Error retrieving notifications: {str(e)}'
         })
-@app.route("/mark-notifications-seen", methods=["POST"])
-def mark_notifications_seen():
-    try:
-        data = request.get_json(silent=True) or {}
-
-        gmail = data.get("gmail", "").strip().lower()
-        role = data.get("role", "").strip().lower()
-
-        if not gmail or not role:
-            return jsonify({
-                "success": False,
-                "message": "Gmail and role are required"
-            }), 400
-
-        notification_result = notificationscollection.update_many(
-            {
-                "recipient": gmail,
-                "read": False
-            },
-            {
-                "$set": {
-                    "read": True,
-                    "seenAt": datetime.now().isoformat()
-                }
-            }
-        )
-
-        message_result = messagescollection.update_many(
-            {
-                "recipient": gmail,
-                "read": False
-            },
-            {
-                "$set": {
-                    "read": True
-                }
-            }
-        )
-
-        return jsonify({
-            "success": True,
-            "message": "Notifications marked as seen",
-            "notifications_updated": notification_result.modified_count,
-            "messages_updated": message_result.modified_count
-        }), 200
-
-    except Exception as e:
-        print(f"Error marking notifications as seen: {e}")
-        return jsonify({
-            "success": False,
-            "message": "Failed to mark notifications as seen"
-        }), 500
 
 # Return/Refund Feature Routes
 @app.route('/request-return', methods=['POST'])

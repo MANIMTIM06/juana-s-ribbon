@@ -2103,10 +2103,36 @@ body {
     align-items: center;
     gap: 10px;
     cursor: pointer;
+    padding: 12px 15px;
+    border: 2px solid var(--secondary-pink);
+    border-radius: 10px;
+    background: rgba(255, 230, 240, 0.7);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.checkbox-label:hover {
+    transform: translateY(-1px);
+    border-color: var(--dark-pink);
+    box-shadow: 0 8px 20px rgba(255, 182, 193, 0.25);
 }
 
 .checkbox-label input {
     width: auto;
+    height: auto;
+    accent-color: var(--dark-pink);
+}
+
+.bundle-only-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    background: rgba(255, 200, 220, 0.9);
+    color: var(--dark-pink);
+    border: 1px solid rgba(255, 150, 180, 0.9);
+    margin-left: 10px;
 }
 
 .add-to-cart-btn {

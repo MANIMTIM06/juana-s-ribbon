@@ -44,7 +44,7 @@ let notificationTracking = {
 let currentNotifications = [];
 
 const CURRENCY = '₱';
-const API_URL = '';
+const API_URL = 'http://localhost:8000';
 const DELIVERY_FEE = 50;
 
 async function fetchProducts() {
@@ -103,7 +103,9 @@ function renderProducts(productsToRender) {
     const grid = document.getElementById('products-grid');
     grid.innerHTML = '';
 
-    productsToRender.forEach(product => {
+    productsToRender
+        .filter(product => !product.bundle_only)
+        .forEach(product => {
         const card = document.createElement('div');
         card.className = 'product-card';
         card.onclick = () => openProductModal(product.name);
@@ -1898,7 +1900,7 @@ function sendChatMessage() {
     // Get customer email if logged in
     const customerEmail = currentUser && currentUser.gmail ? currentUser.gmail : 'guest';
 
-    fetch(`${API_URL}/chat`, {
+    fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({message: message, customer_email: customerEmail})
@@ -3809,7 +3811,10 @@ function renderProductManagementList() {
             <div class="pm-product-header">
                 <div class="pm-product-info">
                     <h4>${product.name}</h4>
-                    <span class="pm-category">${product.category}</span>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span class="pm-category">${product.category}</span>
+                        ${product.bundle_only ? '<span class="bundle-only-badge">Bundle Only</span>' : ''}
+                    </div>
                 </div>
                 <div class="pm-product-actions">
                     ${hasVariants ? `<button class="action-btn pm-manage-variants-btn" onclick="openVariantManagement('${product.name.replace(/'/g, "\\'")}', '${variantType}')">
@@ -3940,6 +3945,7 @@ async function addNewProduct() {
     
     let colors = [];
     let flavors = [];
+    const bundleOnly = document.getElementById('new-product-bundle-only')?.checked || false;
     
     if (type === 'color' && colorsText) {
         colors = colorsText.split('\n').map(c => c.trim()).filter(c => c);
@@ -3957,7 +3963,8 @@ async function addNewProduct() {
                 prices: prices,
                 colors: colors,
                 flavors: flavors,
-                image: imageFilename
+                image: imageFilename,
+                bundle_only: bundleOnly
             })
         });
         const data = await response.json();
@@ -3971,6 +3978,7 @@ async function addNewProduct() {
             document.getElementById('new-product-colors').value = '';
             document.getElementById('new-product-flavors').value = '';
             document.getElementById('new-product-image').value = '';
+            document.getElementById('new-product-bundle-only').checked = false;
             document.getElementById('new-product-type').value = 'color';
             toggleVariantInput();
             

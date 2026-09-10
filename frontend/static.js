@@ -1940,7 +1940,7 @@ function sendChatMessage() {
     // Get customer email if logged in
     const customerEmail = currentUser && currentUser.gmail ? currentUser.gmail : 'guest';
 
-    fetch('http://localhost:8000/chat', {
+    fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({message: message, customer_email: customerEmail})
@@ -1961,7 +1961,7 @@ function loadChatHistory() {
     const customerEmail = currentUser && currentUser.gmail ? currentUser.gmail : 'guest';
     const messagesContainer = document.getElementById('chatbot-messages');
     
-    fetch('http://localhost:8000/get-chat-history', {
+    fetch(`${API_URL}/get-chat-history`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({customer_email: customerEmail})

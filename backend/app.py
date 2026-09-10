@@ -16,6 +16,7 @@ from itsdangerous import URLSafeTimedSerializer
 import uuid
 import random
 import string
+import re
 
 
 load_dotenv()
@@ -2149,12 +2150,10 @@ def chat():
         data = request.json
         message = data.get('message', '').strip()
         customer_email = data.get('customer_email', 'guest')
-        lower_msg = message.lower()
+        lower_msg = re.sub(r'[^a-z0-9₱]+', ' ', message.lower()).strip()
         
         # Use customer email as session identifier
         session_id = customer_email
-        
-        import re
         
         # Store user message in database
         messages_collection.insert_one({
@@ -2165,7 +2164,7 @@ def chat():
         })
         
         # Check if user is asking to see more variants from previous recommendation
-        if lower_msg in ['more', 'show more', 'see more'] or (lower_msg.isdigit() and int(lower_msg) > 5):
+        if lower_msg in ['more', 'show more', 'see more', 'more options', 'other options', 'next options', 'show additional items']:
             if session_id in chat_sessions and chat_sessions[session_id].get('last_recommendation'):
                 bot_response = show_more_variants(session_id)
                 # Store bot response
@@ -2174,13 +2173,14 @@ def chat():
                     'customer_email': customer_email,
                     'type': 'bot',
                     'message': resp_data['response'],
+                    'actions': resp_data.get('actions', []),
                     'timestamp': datetime.now().isoformat()
                 })
                 return bot_response
         
-        budget_match = re.search(r'(\d+)\s*(pesos|budget|afford)', lower_msg)
+        budget_match = re.search(r'(?:₱|php\s*)?([\d,]+)\s*(?:pesos?|php|budget|bucks|afford|worth)?', lower_msg)
         if budget_match:
-            budget = int(budget_match.group(1))
+            budget = int(budget_match.group(1).replace(',', ''))
             bot_response = get_budget_recommendation(budget, session_id)
             # Store bot response
             resp_data = bot_response.get_json()
@@ -2188,55 +2188,89 @@ def chat():
                 'customer_email': customer_email,
                 'type': 'bot',
                 'message': resp_data['response'],
+                'actions': resp_data.get('actions', []),
                 'timestamp': datetime.now().isoformat()
             })
             return bot_response
+
+        if any(phrase in lower_msg for phrase in [
+            'bundle', 'bundles', 'combo', 'combos', 'package', 'packages', 'set',
+            'together', 'combination', 'combine', 'pair', 'gift set'
+        ]):
+            response = "Sure! You can combine 2 to 10 products into one custom bundle. Choose products, quantities, colors, and flavors to build your set."
+            messages_collection.insert_one({
+                'customer_email': customer_email,
+                'type': 'bot',
+                'message': response,
+                'actions': [{'type': 'bundle_builder'}],
+                'timestamp': datetime.now().isoformat()
+            })
+            return jsonify({'response': response, 'actions': [{'type': 'bundle_builder'}]})
         
-        if any(word in lower_msg for word in ['product', 'flower', 'donut', 'bouquet', 'ribbon']):
+        if any(re.search(rf'\b{re.escape(phrase)}\b', lower_msg) for phrase in [
+            'product', 'products', 'item', 'items', 'sell', 'selling', 'catalog', 'collection',
+            'flower', 'flowers', 'rose', 'roses', 'sunflower', 'tulip', 'donut', 'donuts',
+            'doughnut', 'doughnuts', 'sweet', 'treat', 'bouquet', 'bouquets', 'arrangement',
+            'ribbon', 'ribbons', 'bow', 'bows', 'gift', 'gifts'
+        ]):
             bot_response = get_products_info()
             resp_data = bot_response.get_json()
             messages_collection.insert_one({
                 'customer_email': customer_email,
                 'type': 'bot',
                 'message': resp_data['response'],
+                'actions': resp_data.get('actions', []),
                 'timestamp': datetime.now().isoformat()
             })
             return bot_response
         
-        if any(word in lower_msg for word in ['price', 'cost', 'how much', 'expensive']):
+        if any(phrase in lower_msg for phrase in [
+            'price', 'prices', 'cost', 'costs', 'how much', 'how expensive', 'rate', 'rates',
+            'fee', 'fees', 'amount', 'total', 'cheap', 'cheapest', 'affordable', 'expensive'
+        ]):
             bot_response = get_price_info()
             resp_data = bot_response.get_json()
             messages_collection.insert_one({
                 'customer_email': customer_email,
                 'type': 'bot',
                 'message': resp_data['response'],
+                'actions': resp_data.get('actions', []),
                 'timestamp': datetime.now().isoformat()
             })
             return bot_response
         
-        if any(word in lower_msg for word in ['color', 'flavor', 'variant', 'available']):
+        if any(phrase in lower_msg for phrase in [
+            'color', 'colors', 'colour', 'colours', 'shade', 'shades', 'flavor', 'flavors',
+            'flavour', 'flavours', 'taste', 'variant', 'variants', 'option', 'options',
+            'style', 'styles', 'design', 'designs', 'available', 'in stock', 'stock'
+        ]):
             bot_response = get_variants_info()
             resp_data = bot_response.get_json()
             messages_collection.insert_one({
                 'customer_email': customer_email,
                 'type': 'bot',
                 'message': resp_data['response'],
+                'actions': resp_data.get('actions', []),
                 'timestamp': datetime.now().isoformat()
             })
             return bot_response
         
-        if any(word in lower_msg for word in ['new', 'latest', 'recent', 'newest']):
+        if any(phrase in lower_msg for phrase in [
+            'new', 'newest', 'latest', 'recent', 'recently added', 'just added',
+            'what is new', 'what s new', "what's new", 'featured', 'fresh arrival', 'new arrival'
+        ]):
             bot_response = get_new_products_info()
             resp_data = bot_response.get_json()
             messages_collection.insert_one({
                 'customer_email': customer_email,
                 'type': 'bot',
                 'message': resp_data['response'],
+                'actions': resp_data.get('actions', []),
                 'timestamp': datetime.now().isoformat()
             })
             return bot_response
         
-        if any(word in lower_msg for word in ['hello', 'hi', 'hey', 'help']):
+        if re.search(r'^(hello|hi|hey|hiya|good morning|good afternoon|good evening|help|assist|assistance)\b', lower_msg):
             response = "Hi! I'm Juana's AI Assistant! I can help you with:\n- Browse our gorgeous products\n- Find items in your budget\n- Show available colors & flavors\n- Give you pricing info\n\nWhat would you like to know?"
             messages_collection.insert_one({
                 'customer_email': customer_email,
@@ -2246,7 +2280,10 @@ def chat():
             })
             return jsonify({'response': response})
         
-        if any(word in lower_msg for word in ['about', 'who']):
+        if any(phrase in lower_msg for phrase in [
+            'about', 'who are you', 'what are you', 'what do you make', 'what do you sell',
+            'tell me about', 'your store', 'your business', 'your shop'
+        ]):
             response = "I'm Juana's Ribbon! We create beautiful handmade:\n- Ribbon Flowers (Roses, Sunflowers, Tulips)\n- Gorgeous Bouquets (Lover Inspired, Fuzzy Wire, Butterfly)\n- Delicious Mini Donuts\n\nAll made with love!"
             messages_collection.insert_one({
                 'customer_email': customer_email,
@@ -2256,7 +2293,10 @@ def chat():
             })
             return jsonify({'response': response})
         
-        if any(word in lower_msg for word in ['order', 'buy', 'checkout']):
+        if any(phrase in lower_msg for phrase in [
+            'order', 'buy', 'purchase', 'checkout', 'cart', 'pay', 'payment', 'delivery',
+            'deliver', 'shipping', 'ship', 'place an order', 'how do i order'
+        ]):
             response = "Easy! Here's how to order:\n1. Browse our products\n2. Pick your colors/flavors & quantity\n3. Add to cart\n4. Login with Gmail\n5. Checkout!\n\nWant a specific recommendation?"
             messages_collection.insert_one({
                 'customer_email': customer_email,
@@ -2299,6 +2339,7 @@ def get_chat_history():
                 {
                     'type': msg.get('type'),
                     'message': msg.get('message'),
+                    'actions': msg.get('actions', []),
                     'timestamp': msg.get('timestamp')
                 } for msg in messages
             ]
@@ -2336,9 +2377,56 @@ def show_more_variants(session_id):
             response += "\n"
         
         response += "=" * 50
-        return jsonify({'response': response})
+        return jsonify({
+            'response': response,
+            'actions': [
+                {
+                    'type': 'product',
+                    'name': product['name'],
+                    'quantity': product['quantity'],
+                    'price': product['price']
+                } for product in remaining
+            ]
+        })
     except Exception as e:
         return jsonify({'response': f"Error loading more products: {str(e)}"})
+
+def find_budget_bundle(products, budget):
+    """Find two affordable products from different categories for a bundle."""
+    candidates = []
+    for product in products:
+        if product.get('bundle_only', False) or not product.get('prices'):
+            continue
+        quantity, price = min(
+            ((str(quantity), price) for quantity, price in product['prices'].items() if price > 0),
+            key=lambda item: item[1],
+            default=(None, None)
+        )
+        if quantity and price <= budget:
+            candidates.append({
+                'name': product['name'],
+                'quantity': quantity,
+                'price': price,
+                'category': product.get('category', '')
+            })
+
+    best_bundle = None
+    best_score = None
+    for first_index, first in enumerate(candidates):
+        for second in candidates[first_index + 1:]:
+            if first['name'] == second['name']:
+                continue
+            total = first['price'] + second['price']
+            if total > budget:
+                continue
+            bundle = {'items': [first, second], 'total': total, 'budget': budget}
+            score = (first['category'] != second['category'], total)
+            if best_score is None or score > best_score:
+                best_bundle = bundle
+                best_score = score
+
+    return best_bundle
+
 
 def get_budget_recommendation(budget, session_id):
     """Recommend products based on budget"""
@@ -2363,6 +2451,8 @@ def get_budget_recommendation(budget, session_id):
         if not recommendations:
             return jsonify({'response': f"Hmm, with {budget} pesos, we're a bit short...\nOur mini donuts start from 60 pesos!\nWould you like to see all products?"})
         
+        bundle = find_budget_bundle(products, budget)
+
         # Show top 5 products within budget
         top_products = recommendations[:5]
         response = f"✨ Great! Here are {len(top_products)} items I found for {budget} pesos:\n"
@@ -2394,8 +2484,21 @@ def get_budget_recommendation(budget, session_id):
         response += "=" * 50
         if len(recommendations) > 5:
             response += f"\n\n💡 Type 'more' to see {len(recommendations) - 5} more options!"
-        
-        return jsonify({'response': response})
+
+        actions = [
+            {
+                'type': 'product',
+                'name': product['name'],
+                'quantity': product['quantity'],
+                'price': product['price']
+            } for product in top_products
+        ]
+        if bundle:
+            response += "\n\n🎁 BUNDLE IDEA: " + " + ".join(item['name'] for item in bundle['items'])
+            response += f" for ₱{bundle['total']}"
+            actions.append({'type': 'bundle', **bundle})
+
+        return jsonify({'response': response, 'actions': actions})
     except Exception as e:
         return jsonify({'response': f"Error getting recommendations: {str(e)}"})
 
@@ -2422,7 +2525,13 @@ def get_products_info():
             response += "\n"
         
         response += "TIP: Type a budget like '300 pesos' for personalized recommendations!"
-        return jsonify({'response': response})
+        return jsonify({
+            'response': response,
+            'actions': [
+                {'type': 'product', 'name': product['name']}
+                for product in products if not product.get('bundle_only', False)
+            ]
+        })
     except Exception as e:
         return jsonify({'response': f"Error loading products: {str(e)}"})
 
@@ -2502,7 +2611,13 @@ def get_new_products_info():
             response += "\n"
         
         response += "💡 TIP: Ask for specific quantities or type a budget like '500 pesos' for recommendations!"
-        return jsonify({'response': response})
+        return jsonify({
+            'response': response,
+            'actions': [
+                {'type': 'product', 'name': product['name']}
+                for product in new_products if not product.get('bundle_only', False)
+            ]
+        })
     except Exception as e:
         return jsonify({'response': f"Error loading new products: {str(e)}"})
 

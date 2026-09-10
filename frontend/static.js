@@ -1878,16 +1878,56 @@ function handleChatKeypress(event) {
     if (event.key === 'Enter') sendChatMessage();
 }
 
+function appendChatMessage(message, type, actions = []) {
+    const messagesContainer = document.getElementById('chatbot-messages');
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${type === 'bot' ? 'bot-message' : 'user-message'}`;
+
+    const icon = document.createElement('i');
+    icon.className = `fas fa-${type === 'bot' ? 'robot' : 'user'}`;
+    const content = document.createElement('div');
+    content.className = 'chat-message-content';
+    const text = document.createElement('p');
+    text.textContent = message;
+    content.appendChild(text);
+
+    if (type === 'bot' && actions.length > 0) {
+        const actionList = document.createElement('div');
+        actionList.className = 'chat-suggestion-actions';
+        actions.forEach(action => {
+            const button = document.createElement('button');
+            button.className = 'chat-suggestion-btn';
+            button.type = 'button';
+            if (action.type === 'bundle') {
+                button.innerHTML = '<i class="fas fa-gift"></i> Build this bundle';
+                button.onclick = () => openSuggestedBundle(action);
+            } else if (action.type === 'bundle_builder') {
+                button.innerHTML = '<i class="fas fa-gift"></i> Create custom bundle';
+                button.onclick = () => openBundleModal();
+            } else {
+                button.innerHTML = `<i class="fas fa-eye"></i> View ${action.name}`;
+                button.onclick = () => {
+                    showPage('products');
+                    openProductModal(action.name);
+                };
+            }
+            actionList.appendChild(button);
+        });
+        content.appendChild(actionList);
+    }
+
+    messageElement.append(icon, content);
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
 function sendChatMessage() {
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
     if (!message) return;
 
     const messagesContainer = document.getElementById('chatbot-messages');
-    const userMsg = document.createElement('div');
-    userMsg.className = 'message user-message';
-    userMsg.innerHTML = `<i class="fas fa-user"></i><p>${message}</p>`;
-    messagesContainer.appendChild(userMsg);
+    appendChatMessage(message, 'user');
     input.value = '';
     input.disabled = true;
 
@@ -1908,19 +1948,11 @@ function sendChatMessage() {
     .then(res => res.json())
     .then(data => {
         messagesContainer.removeChild(typingMsg);
-        const botMsg = document.createElement('div');
-        botMsg.className = 'message bot-message';
-        botMsg.innerHTML = `<i class="fas fa-robot"></i><p>${data.response || 'Sorry, try again!'}</p>`;
-        messagesContainer.appendChild(botMsg);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        appendChatMessage(data.response || 'Sorry, try again!', 'bot', data.actions || []);
     })
     .catch(err => {
         messagesContainer.removeChild(typingMsg);
-        const botMsg = document.createElement('div');
-        botMsg.className = 'message bot-message';
-        botMsg.innerHTML = `<i class="fas fa-robot"></i><p>Error connecting. Check if server is running.</p>`;
-        messagesContainer.appendChild(botMsg);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        appendChatMessage('Error connecting. Check if server is running.', 'bot');
     })
     .finally(() => input.disabled = false);
 }
@@ -1942,11 +1974,7 @@ function loadChatHistory() {
             
             // Load each message
             data.messages.forEach(msg => {
-                const msgDiv = document.createElement('div');
-                msgDiv.className = `message ${msg.type === 'bot' ? 'bot-message' : 'user-message'}`;
-                const icon = msg.type === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
-                msgDiv.innerHTML = `${icon}<p>${msg.message}</p>`;
-                messagesContainer.appendChild(msgDiv);
+                appendChatMessage(msg.message, msg.type, msg.actions || []);
             });
             
             // Scroll to bottom
@@ -4416,6 +4444,25 @@ function openBundleModal() {
     renderBundleItems();
 }
 
+function openSuggestedBundle(bundle) {
+    if (!currentUser) {
+        alert('Please login to create a bundle');
+        showLoginModal();
+        return;
+    }
+
+    bundleItems = (bundle.items || []).map(item => ({
+        id: Date.now() + Math.random(),
+        product: item.name,
+        quantity: String(item.quantity),
+        color: '',
+        flavor: '',
+        price: Number(item.price) || 0
+    }));
+    document.getElementById('bundle-modal').classList.add('active');
+    renderBundleItems();
+}
+
 function closeBundleModal() {
     document.getElementById('bundle-modal').classList.remove('active');
     bundleItems = [];
@@ -5445,4 +5492,3 @@ window.addEventListener('load', function() {
         loadUserProfile();
     }
 });
-

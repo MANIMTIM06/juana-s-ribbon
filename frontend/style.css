@@ -1499,6 +1499,32 @@ body {
     color: var(--text-dark);
 }
 
+.chat-message-content {
+    min-width: 0;
+}
+
+.chat-suggestion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 7px;
+}
+
+.chat-suggestion-btn {
+    border: 1px solid var(--secondary-pink);
+    border-radius: 14px;
+    padding: 6px 10px;
+    background: white;
+    color: var(--dark-pink);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.chat-suggestion-btn:hover {
+    background: var(--gradient-pink);
+}
+
 .user-message p {
     background: var(--gradient-pink);
 }
@@ -5624,4 +5650,3 @@ body {
         grid-template-columns: 1fr;
     }
 }
-

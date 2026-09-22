@@ -69,6 +69,46 @@ return_requests_collection = db['return_requests']
 
 PRODUCT_HASHES = {}
 
+def build_image_signature(img):
+    """Build visual features that are more reliable than average hash alone."""
+    normalized = img.convert('RGB')
+    resized = normalized.resize((128, 128))
+    width, height = resized.size
+    subject = resized.crop((width * 0.15, height * 0.15, width * 0.85, height * 0.85))
+    hsv = subject.convert('HSV')
+    histogram = [0.0] * 18
+
+    for hue, saturation, value in hsv.getdata():
+        # Ignore very dark pixels and give saturated colors more influence.
+        if value < 25 or saturation < 20:
+            continue
+        histogram[min(17, hue * 18 // 256)] += (saturation / 255) * (value / 255)
+
+    histogram_total = sum(histogram) or 1
+    return {
+        'hash': str(imagehash.average_hash(normalized)),
+        'phash': str(imagehash.phash(normalized)),
+        'dhash': str(imagehash.dhash(normalized)),
+        'color_histogram': [value / histogram_total for value in histogram]
+    }
+
+def image_signature_distance(uploaded, product):
+    """Combine structure and color distances into a score from 0 to 64."""
+    average_distance = imagehash.hex_to_hash(uploaded['hash']) - imagehash.hex_to_hash(product['hash'])
+    perceptual_distance = imagehash.hex_to_hash(uploaded['phash']) - imagehash.hex_to_hash(product['phash'])
+    edge_distance = imagehash.hex_to_hash(uploaded['dhash']) - imagehash.hex_to_hash(product['dhash'])
+    color_distance = sum(
+        abs(left - right)
+        for left, right in zip(uploaded['color_histogram'], product['color_histogram'])
+    ) / 2
+
+    return (
+        average_distance * 0.10 +
+        perceptual_distance * 0.15 +
+        edge_distance * 0.15 +
+        color_distance * 64 * 0.60
+    )
+
 # Store last recommendation per session to handle "more" requests
 chat_sessions = {}
 
@@ -353,8 +393,10 @@ def seed_data():
                 with Image.open(image_path) as img:
                     if img.mode not in ('RGB', 'L'):
                         img = img.convert('RGB')
-                    hash_val = imagehash.average_hash(img)
-                    PRODUCT_HASHES[image_filename] = {'hash': str(hash_val), 'name': product['name']}
+                    PRODUCT_HASHES[image_filename] = {
+                        **build_image_signature(img),
+                        'name': product['name']
+                    }
                     print(f"  [OK] Hashed {image_filename}: {product['name']}")
             except Exception as e:
                 print(f"  [FAIL] Error hashing {image_filename}: {e}")
@@ -387,10 +429,12 @@ def update_product_hash(product_name, image_filename):
                 if img.mode not in ('RGB', 'L'):
                     img = img.convert('RGB')
                     print(f"[HASH] Converted to RGB")
-                hash_val = imagehash.average_hash(img)
-                PRODUCT_HASHES[image_filename] = {'hash': str(hash_val), 'name': product_name}
+                PRODUCT_HASHES[image_filename] = {
+                    **build_image_signature(img),
+                    'name': product_name
+                }
                 print(f"[OK] Added hash for new product: {product_name}")
-                print(f"[HASH] Hash value: {str(hash_val)}")
+                print(f"[HASH] Average hash value: {PRODUCT_HASHES[image_filename]['hash']}")
                 print(f"[HASH] Total products in hashes: {len(PRODUCT_HASHES)}")
                 return True
         else:
@@ -912,6 +956,7 @@ def calendar_order():
         'scheduled_time': time,
         'scheduled_datetime': result,
         'payment': data.get('payment', 'cash'),
+        'bundle_designs': data.get('bundle_designs', []),
         'date': datetime.now().strftime("%Y-%m-%d"),
         'created_at': datetime.now().isoformat(),
         'status': 'scheduled'
@@ -929,6 +974,30 @@ def calendar_order():
         )
     
     return jsonify({'success': True, 'order_id': order_id})
+
+@app.route('/upload-bundle-design', methods=['POST'])
+def upload_bundle_design():
+    """Save a customer's reference image for a custom bundle."""
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'message': 'No image file provided'})
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No image file selected'})
+
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'message': 'Invalid file type. Allowed: jpg, jpeg, png, gif, webp'})
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_filename = f"bundle-design-{uuid.uuid4().hex}.{ext}"
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
+
+    return jsonify({
+        'success': True,
+        'filename': unique_filename,
+        'url': f'/static/images/{unique_filename}'
+    })
 
 @app.route('/update-order-status', methods=['POST'])
 def update_order_status():
@@ -2392,7 +2461,7 @@ def show_more_variants(session_id):
         return jsonify({'response': f"Error loading more products: {str(e)}"})
 
 def find_budget_bundle(products, budget):
-    """Find two affordable products from different categories for a bundle."""
+    """Find up to ten different affordable products that best use the budget."""
     candidates = []
     for product in products:
         if product.get('bundle_only', False) or not product.get('prices'):
@@ -2410,22 +2479,30 @@ def find_budget_bundle(products, budget):
                 'category': product.get('category', '')
             })
 
-    best_bundle = None
-    best_score = None
-    for first_index, first in enumerate(candidates):
-        for second in candidates[first_index + 1:]:
-            if first['name'] == second['name']:
-                continue
-            total = first['price'] + second['price']
-            if total > budget:
-                continue
-            bundle = {'items': [first, second], 'total': total, 'budget': budget}
-            score = (first['category'] != second['category'], total)
-            if best_score is None or score > best_score:
-                best_bundle = bundle
-                best_score = score
+    if len(candidates) < 2:
+        return None
 
-    return best_bundle
+    # Keep the best combination for each total, limiting bundles to the
+    # same 10-item maximum as the custom bundle builder.
+    combinations = {0: []}
+    for candidate in candidates:
+        for total, items in list(combinations.items()):
+            new_total = total + candidate['price']
+            if new_total > budget or len(items) >= 10:
+                continue
+            new_items = items + [candidate]
+            if new_total not in combinations or len(new_items) > len(combinations[new_total]):
+                combinations[new_total] = new_items
+
+    valid_combinations = [
+        (total, items) for total, items in combinations.items()
+        if len(items) >= 2
+    ]
+    if not valid_combinations:
+        return None
+
+    total, items = max(valid_combinations, key=lambda option: (option[0], len(option[1])))
+    return {'items': items, 'total': total, 'budget': budget}
 
 
 def get_budget_recommendation(budget, session_id):
@@ -2649,7 +2726,7 @@ def image_identify():
             with Image.open(temp_path) as img:
                 if img.mode not in ('RGB', 'L'):
                     img = img.convert('RGB')
-                uploaded_hash = imagehash.average_hash(img)
+                uploaded_signature = build_image_signature(img)
             
             min_dist = float('inf')
             best_match = None
@@ -2659,8 +2736,7 @@ def image_identify():
             
             for image_filename, info in PRODUCT_HASHES.items():
                 try:
-                    product_hash = imagehash.hex_to_hash(info['hash'])
-                    dist = uploaded_hash - product_hash
+                    dist = image_signature_distance(uploaded_signature, info)
                     all_distances.append((image_filename, info['name'], dist))
                     
                     if dist < min_dist:
@@ -2678,9 +2754,9 @@ def image_identify():
             os.close(temp_fd)
             os.unlink(temp_path)
             
-            close_match_threshold = 28       
-            uncertain_threshold = 38          
-            unknown_threshold = 50            
+            close_match_threshold = 24
+            uncertain_threshold = 34
+            unknown_threshold = 46
             
             if best_match and min_dist <= close_match_threshold:
                 confidence = max(0, 1 - (min_dist / 64))

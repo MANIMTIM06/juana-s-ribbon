@@ -1350,6 +1350,10 @@ async function loadDashboardData(period) {
                     const itemsDetails = formatOrderItemsDetails(order.items);
                     const date = new Date(order.created_at).toLocaleDateString();
                     const actions = getOrderActions(order);
+                    const design = (order.bundle_designs || []).find(item => item.image);
+                    const designAction = `<button class="simple-action-btn design-btn" onclick="openBundleDesignModal('${design ? encodeURIComponent(design.image) : ''}')">
+                        <i class="fas fa-image"></i> View Design
+                    </button>`;
                     
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -1360,7 +1364,7 @@ async function loadDashboardData(period) {
                         <td>${paymentBadge}</td>
                         <td>${statusBadge}</td>
                         <td>${date}</td>
-                        <td>${actions}</td>
+                        <td>${designAction}${actions}</td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -2145,6 +2149,10 @@ async function loadSimpleOrderManagement() {
                 const date = new Date(order.created_at).toLocaleDateString();
 
                 const actions = getOrderActions(order);
+                const design = (order.bundle_designs || []).find(item => item.image);
+                const designAction = `<button class="simple-action-btn design-btn" onclick="openBundleDesignModal('${design ? encodeURIComponent(design.image) : ''}')">
+                    <i class="fas fa-image"></i> View Design
+                </button>`;
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -2155,7 +2163,7 @@ async function loadSimpleOrderManagement() {
                     <td>${paymentBadge}</td>
                     <td>${statusBadge}</td>
                     <td>${date}</td>
-                    <td>${actions}</td>
+                    <td>${designAction}${actions}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -2166,6 +2174,30 @@ async function loadSimpleOrderManagement() {
         console.error('Error loading simple orders:', error);
         tbody.innerHTML = '<tr><td colspan="8" class="error">Error loading orders</td></tr>';
     }
+}
+
+function openBundleDesignModal(encodedImage) {
+    const image = encodedImage ? decodeURIComponent(encodedImage) : '';
+    const modal = document.getElementById('bundle-design-modal');
+    const imageElement = document.getElementById('bundle-design-modal-image');
+    const emptyMessage = document.getElementById('bundle-design-modal-empty');
+    if (!modal || !imageElement || !emptyMessage) return;
+
+    if (image) {
+        imageElement.src = `/static/images/${image}`;
+        imageElement.style.display = 'block';
+        emptyMessage.style.display = 'none';
+    } else {
+        imageElement.src = '';
+        imageElement.style.display = 'none';
+        emptyMessage.style.display = 'block';
+    }
+    modal.classList.add('active');
+}
+
+function closeBundleDesignModal() {
+    const modal = document.getElementById('bundle-design-modal');
+    if (modal) modal.classList.remove('active');
 }
 
 function getPaymentBadge(payment) {
@@ -2881,6 +2913,10 @@ async function processOrder() {
         address: checkoutData.address,
         date: checkoutData.date,
         time: checkoutData.time,
+        bundle_designs: cart.filter(item => item.is_bundle && item.design_image).map(item => ({
+            bundle_id: item.bundle_id,
+            image: item.design_image
+        })),
         payment: checkoutData.payment
     };
     
@@ -4432,6 +4468,7 @@ function removeUploadedImage() {
 
 let bundleItems = [];
 let bundleIdCounter = 1;
+let bundleDesignImage = '';
 
 function openBundleModal() {
     if (!currentUser) {
@@ -4440,7 +4477,9 @@ function openBundleModal() {
         return;
     }
     bundleItems = [];
+    bundleDesignImage = '';
     document.getElementById('bundle-modal').classList.add('active');
+    removeBundleDesign();
     renderBundleItems();
 }
 
@@ -4459,13 +4498,59 @@ function openSuggestedBundle(bundle) {
         flavor: '',
         price: Number(item.price) || 0
     }));
+    bundleDesignImage = '';
     document.getElementById('bundle-modal').classList.add('active');
+    removeBundleDesign();
     renderBundleItems();
 }
 
 function closeBundleModal() {
     document.getElementById('bundle-modal').classList.remove('active');
     bundleItems = [];
+    bundleDesignImage = '';
+}
+
+async function uploadBundleDesign(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const preview = document.getElementById('bundle-design-preview');
+    const previewImage = document.getElementById('bundle-design-preview-image');
+    const status = document.getElementById('bundle-design-status');
+    previewImage.src = URL.createObjectURL(file);
+    preview.style.display = 'flex';
+    status.textContent = 'Uploading...';
+    document.getElementById('add-bundle-to-cart-btn').disabled = true;
+
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+        const response = await fetch(`${API_URL}/upload-bundle-design`, { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Upload failed');
+        bundleDesignImage = data.filename;
+        status.textContent = 'Design added';
+        updateBundleTotal();
+    } catch (error) {
+        bundleDesignImage = '';
+        status.textContent = '';
+        event.target.value = '';
+        alert(error.message || 'Unable to upload the design image');
+        updateBundleTotal();
+    }
+}
+
+function removeBundleDesign() {
+    bundleDesignImage = '';
+    const input = document.getElementById('bundle-design-input');
+    const preview = document.getElementById('bundle-design-preview');
+    const previewImage = document.getElementById('bundle-design-preview-image');
+    const status = document.getElementById('bundle-design-status');
+    if (input) input.value = '';
+    if (preview) preview.style.display = 'none';
+    if (previewImage) previewImage.src = '';
+    if (status) status.textContent = '';
+    updateBundleTotal();
 }
 
 function addBundleItem() {
@@ -4943,7 +5028,8 @@ if (bundleItems.length < 2) {
             details: item.quantity + ' pcs' + (item.color ? ' - ' + item.color : '') + (item.flavor ? ' - ' + item.flavor : '')
         })),
         total_price: bundleTotal,
-details: `${bundleItems.length} items bundle (min 2, max 10)`
+        details: `${bundleItems.length} items bundle (min 2, max 10)`,
+        design_image: bundleDesignImage
     };
     
     cart.push(bundleItem);

@@ -1301,6 +1301,15 @@
                 </div>
                 <div class="modal-body">
                     <p class="bundle-info">Select 2-10 products for your bundle. Each product can have different colors/flavors!</p>
+                    <div class="bundle-design-upload">
+                        <label for="bundle-design-input"><i class="fas fa-image"></i> Preferred bundle design <span>(optional)</span></label>
+                        <input type="file" id="bundle-design-input" accept="image/png,image/jpeg,image/gif,image/webp" onchange="uploadBundleDesign(event)">
+                        <div id="bundle-design-preview" class="bundle-design-preview" style="display:none;">
+                            <img id="bundle-design-preview-image" src="" alt="Preferred bundle design">
+                            <button type="button" class="bundle-design-remove" onclick="removeBundleDesign()" title="Remove design"><i class="fas fa-times"></i></button>
+                            <span id="bundle-design-status"></span>
+                        </div>
+                    </div>
                     <div class="bundle-items-container" id="bundle-items-container">
                         
                     </div>
@@ -1316,6 +1325,19 @@
                     <button class="submit-btn" id="add-bundle-to-cart-btn" onclick="addBundleToCart()" disabled>
                         <i class="fas fa-cart-plus"></i> Add Bundle to Cart
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="bundle-design-modal">
+            <div class="modal-content bundle-design-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-image"></i> Customer's Preferred Design</h3>
+                    <button class="close-modal" onclick="closeBundleDesignModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <img id="bundle-design-modal-image" class="bundle-design-modal-image" src="" alt="Customer's preferred bundle design">
+                    <p id="bundle-design-modal-empty" class="no-design-message" style="display:none;">This order has no preferred design image.</p>
                 </div>
             </div>
         </div>

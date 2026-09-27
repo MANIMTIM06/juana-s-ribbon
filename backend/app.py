@@ -37,10 +37,11 @@ BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "Juana's Ribbon")
 
-
 # OTP Configuration
 OTP_EXPIRY_MINUTES = int(os.getenv('OTP_EXPIRY_MINUTES', 10))
 OTP_LENGTH = int(os.getenv('OTP_LENGTH', 6))
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_HOURS = 1
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), 'frontend')
@@ -65,6 +66,7 @@ categories_collection = db['categories']
 messages_collection = db['messages']
 otp_collection = db['otp_tokens']
 notifications_collection = db['notifications']
+notification_views_collection = db['notification_views']
 return_requests_collection = db['return_requests']
 
 PRODUCT_HASHES = {}
@@ -111,6 +113,13 @@ def image_signature_distance(uploaded, product):
 
 # Store last recommendation per session to handle "more" requests
 chat_sessions = {}
+
+CONTACT_INFO = {
+    'phone': '0995 196 6543',
+    'address': 'Bagumbayan, Sta Cruz, Philippines, 4009',
+    'instagram': 'https://www.instagram.com/juanasribbon?igsh=eXNteDV4MDhxa3ho',
+    'facebook': 'https://www.facebook.com/share/17xzjJFzXD/'
+}
 
 def generate_otp(length=OTP_LENGTH):
     """Generate a random OTP code"""
@@ -200,7 +209,6 @@ def send_otp_email(email, otp, purpose="registration"):
     except Exception as e:
         print(f"Error sending OTP email to {email}: {str(e)}")
         return False
-
 
 def save_otp(email, otp, purpose='registration'):
     """Save OTP to database with expiry"""
@@ -586,9 +594,53 @@ def customer_login():
     # Check if account is verified
     if existing_user.get('status') == 'pending_verification':
         return jsonify({'success': False, 'message': 'Please verify your email first to login.'})
+
+    now = datetime.now()
+    locked_until_value = existing_user.get('login_locked_until')
+    if locked_until_value:
+        try:
+            locked_until = datetime.fromisoformat(locked_until_value)
+        except (TypeError, ValueError):
+            locked_until = None
+
+        if locked_until and now < locked_until:
+            return jsonify({
+                'success': False,
+                'message': 'Too many failed login attempts. Please try again in 1 hour.'
+            }), 429
+
+        users_collection.update_one(
+            {'_id': existing_user['_id']},
+            {'$set': {'failed_login_attempts': 0}, '$unset': {'login_locked_until': ''}}
+        )
+        existing_user['failed_login_attempts'] = 0
+        existing_user.pop('login_locked_until', None)
    
     if not check_password_hash(existing_user.get('password', ''), password):
+        failed_attempts = existing_user.get('failed_login_attempts', 0) + 1
+        update_fields = {'failed_login_attempts': failed_attempts}
+        if failed_attempts >= MAX_LOGIN_ATTEMPTS:
+            update_fields['login_locked_until'] = (
+                now + timedelta(hours=LOGIN_LOCKOUT_HOURS)
+            ).isoformat()
+
+        users_collection.update_one(
+            {'_id': existing_user['_id']},
+            {'$set': update_fields}
+        )
+
+        if failed_attempts >= MAX_LOGIN_ATTEMPTS:
+            return jsonify({
+                'success': False,
+                'message': 'Too many failed login attempts. Please try again in 1 hour.'
+            }), 429
+
         return jsonify({'success': False, 'message': 'Invalid password'})
+
+    users_collection.update_one(
+        {'_id': existing_user['_id']},
+        {'$set': {'failed_login_attempts': 0}, '$unset': {'login_locked_until': ''}}
+    )
     
     
     login_record = {
@@ -1254,7 +1306,17 @@ def get_dashboard_data():
     total_unique_customers = len(unique_customers)
     
     
-    recent_logins = list(login_history_collection.find().sort('login_time', -1).limit(10))
+    recent_logins = list(login_history_collection.aggregate([
+        {'$sort': {'login_time': -1}},
+        {'$group': {
+            '_id': '$gmail',
+            'gmail': {'$first': '$gmail'},
+            'login_time': {'$first': '$login_time'},
+            'login_count': {'$sum': 1}
+        }},
+        {'$sort': {'login_time': -1}},
+        {'$limit': 10}
+    ]))
     for login in recent_logins:
         login['_id'] = str(login['_id'])
     
@@ -2231,6 +2293,42 @@ def chat():
             'message': message,
             'timestamp': datetime.now().isoformat()
         })
+
+        contact_terms = [
+            'contact', 'phone', 'telephone', 'mobile', 'number', 'address',
+            'location', 'where are you', 'find you', 'reach you', 'visit',
+            'instagram', 'ig', 'facebook', 'social media', '4009', '0995'
+        ]
+        if any(term in lower_msg for term in contact_terms):
+            requested_phone = any(term in lower_msg for term in ['phone', 'telephone', 'mobile', 'number', '0995'])
+            requested_address = any(term in lower_msg for term in ['address', 'location', 'where are you', 'find you', 'visit', '4009'])
+            requested_instagram = 'instagram' in lower_msg or re.search(r'\big\b', lower_msg) is not None
+            requested_facebook = 'facebook' in lower_msg
+
+            if requested_phone and not (requested_address or requested_instagram or requested_facebook):
+                response = f"You can reach Juana's Ribbon at {CONTACT_INFO['phone']}."
+            elif requested_address and not (requested_phone or requested_instagram or requested_facebook):
+                response = f"Juana's Ribbon is located at {CONTACT_INFO['address']}."
+            elif requested_instagram and not (requested_phone or requested_address or requested_facebook):
+                response = f"Follow Juana's Ribbon on Instagram: {CONTACT_INFO['instagram']}"
+            elif requested_facebook and not (requested_phone or requested_address or requested_instagram):
+                response = f"Follow Juana's Ribbon on Facebook: {CONTACT_INFO['facebook']}"
+            else:
+                response = (
+                    "Here is Juana's Ribbon's contact information:\n"
+                    f"Phone: {CONTACT_INFO['phone']}\n"
+                    f"Address: {CONTACT_INFO['address']}\n"
+                    f"Instagram: {CONTACT_INFO['instagram']}\n"
+                    f"Facebook: {CONTACT_INFO['facebook']}"
+                )
+
+            messages_collection.insert_one({
+                'customer_email': customer_email,
+                'type': 'bot',
+                'message': response,
+                'timestamp': datetime.now().isoformat()
+            })
+            return jsonify({'response': response})
         
         # Check if user is asking to see more variants from previous recommendation
         if lower_msg in ['more', 'show more', 'see more', 'more options', 'other options', 'next options', 'show additional items']:
@@ -3043,11 +3141,12 @@ def get_notifications():
         if role == 'customer':
             # Get specific order ready notifications
             order_ready_notifs = list(notifications_collection.find(
-                {'recipient': gmail, 'type': 'order_ready'}
+                {'recipient': gmail, 'type': 'order_ready', 'read': {'$ne': True}}
             ).sort('created_at', -1).limit(3))
             
             for notif in order_ready_notifs:
                 notifications.append({
+                    'notification_id': str(notif['_id']),
                     'type': 'order_ready',
                     'order_id': notif.get('order_id'),
                     'message': notif.get('message'),
@@ -3058,12 +3157,13 @@ def get_notifications():
             
             # Get return approved/disapproved notifications
             return_notifs = list(notifications_collection.find(
-                {'recipient': gmail, 'type': {'$in': ['return_approved', 'return_disapproved']}}
+                {'recipient': gmail, 'type': {'$in': ['return_approved', 'return_disapproved']}, 'read': {'$ne': True}}
             ).sort('created_at', -1).limit(5))
             
             for notif in return_notifs:
                 icon = 'fa-check-circle' if notif.get('type') == 'return_approved' else 'fa-times-circle'
                 notifications.append({
+                    'notification_id': str(notif['_id']),
                     'type': notif.get('type'),
                     'order_id': notif.get('order_id'),
                     'message': notif.get('message'),
@@ -3106,13 +3206,14 @@ def get_notifications():
             print(f"[DEBUG] Fetching owner notifications for: {gmail}")
             # Get return request notifications
             return_request_notifs = list(notifications_collection.find(
-                {'recipient': gmail, 'type': 'return_request'}
+                {'recipient': gmail, 'type': 'return_request', 'read': {'$ne': True}}
             ).sort('created_at', -1).limit(5))
             
             print(f"[DEBUG] Found {len(return_request_notifs)} return request notifications")
             
             for notif in return_request_notifs:
                 notifications.append({
+                    'notification_id': str(notif['_id']),
                     'type': 'return_request',
                     'order_id': notif.get('order_id'),
                     'customer': notif.get('customer'),
@@ -3124,11 +3225,12 @@ def get_notifications():
             
             # Get order received notifications (customer confirmed delivery)
             order_received_notifs = list(notifications_collection.find(
-                {'recipient': gmail, 'type': 'order_received'}
+                {'recipient': gmail, 'type': 'order_received', 'read': {'$ne': True}}
             ).sort('created_at', -1).limit(3))
             
             for notif in order_received_notifs:
                 notifications.append({
+                    'notification_id': str(notif['_id']),
                     'type': 'order_received',
                     'order_id': notif.get('order_id'),
                     'customer': notif.get('customer'),
@@ -3211,6 +3313,33 @@ def get_notifications():
             'success': False,
             'message': f'Error retrieving notifications: {str(e)}'
         })
+
+@app.route('/mark-notification-seen', methods=['POST'])
+def mark_notification_seen():
+    """Mark one notification as seen for a specific recipient."""
+    data = request.json or {}
+    gmail = data.get('gmail', '').strip().lower()
+    notification_id = data.get('notification_id', '')
+    notification_key = data.get('notification_key', '')
+
+    if not gmail or (not notification_id and not notification_key):
+        return jsonify({'success': False, 'message': 'Recipient and notification are required'}), 400
+
+    try:
+        if notification_id:
+            notifications_collection.update_one(
+                {'_id': ObjectId(notification_id), 'recipient': gmail},
+                {'$set': {'read': True}}
+            )
+        else:
+            notification_views_collection.update_one(
+                {'recipient': gmail, 'notification_key': notification_key},
+                {'$set': {'seen': True, 'seen_at': datetime.now().isoformat()}},
+                upsert=True
+            )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error marking notification seen: {str(e)}'}), 400
 
 # Return/Refund Feature Routes
 @app.route('/request-return', methods=['POST'])

@@ -1503,6 +1503,12 @@ body {
     min-width: 0;
 }
 
+.chat-message-content a {
+    color: var(--dark-pink);
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+}
+
 .chat-suggestion-actions {
     display: flex;
     flex-wrap: wrap;
@@ -2870,6 +2876,18 @@ body {
     font-size: 0.8rem;
 }
 
+.notification-count {
+    min-width: 28px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: var(--dark-pink);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    flex-shrink: 0;
+}
+
 
 .register-btn {
     background: var(--dark-pink) !important;
@@ -3205,9 +3223,16 @@ body {
     min-width: 1000px;
 }
 
-.simple-order-table th {
-    background: linear-gradient(135deg, var(--gradient-pink), var(--secondary-pink));
-    color: white;
+.simple-order-table-scroll {
+    max-height: min(58vh, 620px);
+    overflow: auto;
+    border: 1px solid var(--light-pink);
+    border-radius: 10px;
+}
+
+.orders-table.simple-order-table th {
+    background: var(--light-pink);
+    color: var(--text-dark);
     font-weight: 700;
     position: sticky;
     top: 0;
@@ -4536,6 +4561,7 @@ body {
     display: flex;
     gap: 12px;
     align-items: flex-start;
+    cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
 }

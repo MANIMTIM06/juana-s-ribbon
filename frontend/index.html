@@ -444,25 +444,27 @@
                 <div class="simple-order-management orders-table-container">
 <h3><i class="fas fa-clipboard-list"></i> Order Management <button class="open-order-mgmt-btn" onclick="loadSimpleOrderManagement()">Refresh Orders</button></h3>
 
-                    <table class="orders-table simple-order-table">
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Customer</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Payment</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="simple-order-management-body">
-                            <tr>
-                                <td colspan="8" class="loading">Loading orders... <i class="fas fa-spinner fa-spin"></i></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="simple-order-table-scroll">
+                        <table class="orders-table simple-order-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Payment</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="simple-order-management-body">
+                                <tr>
+                                    <td colspan="8" class="loading">Loading orders... <i class="fas fa-spinner fa-spin"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Return/Refund Management Section -->

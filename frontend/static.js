@@ -1616,8 +1616,9 @@ function renderCustomerNotifications(recentLogins) {
             </div>
             <div class="notification-content">
                 <p class="notification-gmail">${login.gmail}</p>
-                <p class="notification-time">${formattedDate} at ${formattedTime}</p>
+                <p class="notification-time">Last login: ${formattedDate} at ${formattedTime}</p>
             </div>
+            <span class="notification-count" title="Total logins">${login.login_count || 1}</span>
         `;
         container.appendChild(notificationItem);
     });
@@ -1882,6 +1883,25 @@ function handleChatKeypress(event) {
     if (event.key === 'Enter') sendChatMessage();
 }
 
+function appendChatTextWithLinks(container, message) {
+    const parts = message.split(/(https?:\/\/[^\s]+|\n)/g);
+
+    parts.forEach(part => {
+        if (part === '\n') {
+            container.appendChild(document.createElement('br'));
+        } else if (part.startsWith('http://') || part.startsWith('https://')) {
+            const link = document.createElement('a');
+            link.href = part;
+            link.textContent = part;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            container.appendChild(link);
+        } else if (part) {
+            container.appendChild(document.createTextNode(part));
+        }
+    });
+}
+
 function appendChatMessage(message, type, actions = []) {
     const messagesContainer = document.getElementById('chatbot-messages');
     const messageElement = document.createElement('div');
@@ -1892,7 +1912,7 @@ function appendChatMessage(message, type, actions = []) {
     const content = document.createElement('div');
     content.className = 'chat-message-content';
     const text = document.createElement('p');
-    text.textContent = message;
+    appendChatTextWithLinks(text, message);
     content.appendChild(text);
 
     if (type === 'bot' && actions.length > 0) {
@@ -2098,7 +2118,9 @@ let currentCancelOrderId = null;
 
 function getOrderActions(order) {
     console.log('Order status:', order.status, 'Payment:', order.payment);
-    let actions = '';
+    let actions = `<button class="simple-action-btn receipt-btn" onclick="printCustomerReceipt('${order.order_id}')">
+        <i class="fas fa-receipt"></i> View Receipt
+    </button>`;
     if (order.status === 'pending' || order.status === 'scheduled') {
         actions += `<button class="simple-action-btn payment-btn" onclick="updateSimpleOrderStatus('${order.order_id}', 'payment_confirmed')">
             <i class="fas fa-credit-card"></i> Confirm Payment
@@ -4671,6 +4693,26 @@ addBtn.disabled = bundleItems.length >= 10;
 
 // ==================== NOTIFICATION FUNCTIONS ====================
 
+function getNotificationKey(notification) {
+    if (notification.notification_id) return `stored:${notification.notification_id}`;
+    return `generated:${notification.type}:${notification.order_id || ''}:${notification.product || ''}:${notification.variant || ''}:${notification.sender || ''}:${notification.gmail || ''}:${notification.date || ''}:${notification.status || ''}`;
+}
+
+function getSeenNotificationKeys() {
+    if (!currentUser) return [];
+    return JSON.parse(localStorage.getItem(`seenNotifications:${currentUser.role}:${currentUser.gmail}`) || '[]');
+}
+
+function rememberNotificationAsSeen(notification) {
+    const key = getNotificationKey(notification);
+    const seenKeys = getSeenNotificationKeys();
+    if (!seenKeys.includes(key)) {
+        seenKeys.push(key);
+        localStorage.setItem(`seenNotifications:${currentUser.role}:${currentUser.gmail}`, JSON.stringify(seenKeys));
+    }
+    return key;
+}
+
 async function fetchNotifications() {
     if (!currentUser) {
         console.log('[Notifications] No current user');
@@ -4703,21 +4745,24 @@ async function fetchNotifications() {
         if (data.success && data.notifications && data.notifications.length > 0) {
             console.log('[Notifications] Received', data.notifications.length, 'notifications');
             const userRole = currentUser.role;
-            currentNotifications = data.notifications;
+            const seenKeys = getSeenNotificationKeys();
+            currentNotifications = data.notifications.filter(notification =>
+                !notification.read && !seenKeys.includes(getNotificationKey(notification))
+            );
             
             // Get role-specific tracking
             const roleTracking = notificationTracking[userRole];
             
             // Check if there are NEW notifications (count increased for this specific role)
-            if (data.notifications.length > roleTracking.lastFetchedCount) {
-                console.log(`[Notifications] NEW ${userRole} notifications detected! Previous:`, roleTracking.lastFetchedCount, 'Current:', data.notifications.length);
+            if (currentNotifications.length > roleTracking.lastFetchedCount) {
+                console.log(`[Notifications] NEW ${userRole} notifications detected! Previous:`, roleTracking.lastFetchedCount, 'Current:', currentNotifications.length);
                 // Show modal popup only for new notifications
-                showNewNotificationModal(data.notifications);
+                showNewNotificationModal(currentNotifications);
             }
             
             // Update role-specific tracking
-            roleTracking.lastFetchedCount = data.notifications.length;
-            roleTracking.notifications = data.notifications;
+            roleTracking.lastFetchedCount = currentNotifications.length;
+            roleTracking.notifications = currentNotifications;
         } else {
             console.log('[Notifications] No notifications to display');
             currentNotifications = [];
@@ -4767,6 +4812,8 @@ function showNewNotificationModal(notifications) {
     
     if (!header || !overlay) return;
     
+    notificationsSeen = false;
+
     // Display the notification list
     displayNotifications(notifications);
     
@@ -4774,13 +4821,12 @@ function showNewNotificationModal(notifications) {
     header.style.display = 'flex';
     overlay.style.display = 'block';
     
-    // Mark as not seen since new notification arrived
-    notificationsSeen = false;
 }
 
 function createNotificationItem(notification) {
     const item = document.createElement('div');
     item.className = `notification-item ${notification.type}`;
+    item.title = 'Click to mark as seen';
     
     let badge = '';
     let meta = '';
@@ -4847,8 +4893,35 @@ function createNotificationItem(notification) {
             </div>
         </div>
     `;
+
+    item.addEventListener('click', () => markNotificationAsSeen(notification, item));
     
     return item;
+}
+
+async function markNotificationAsSeen(notification, item) {
+    if (!currentUser) return;
+
+    const notificationKey = rememberNotificationAsSeen(notification);
+    currentNotifications = currentNotifications.filter(current =>
+        getNotificationKey(current) !== getNotificationKey(notification)
+    );
+    item.remove();
+    displayNotifications(currentNotifications);
+
+    try {
+        await fetch(`${API_URL}/mark-notification-seen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                gmail: currentUser.gmail,
+                notification_id: notification.notification_id,
+                notification_key: notificationKey
+            })
+        });
+    } catch (error) {
+        console.error('Error marking notification as seen:', error);
+    }
 }
 
 function closeNotificationHeader() {
@@ -4860,8 +4933,7 @@ function closeNotificationHeader() {
     if (overlay) {
         overlay.style.display = 'none';
     }
-    // Mark notifications as seen when closing the modal
-    markNotificationsAsSeen();
+    notificationsSeen = true;
 }
 
 function markNotificationsAsSeen() {
@@ -4879,17 +4951,6 @@ function markNotificationsAsSeen() {
         ownerBadge.style.display = 'none';
     }
 
-    // Call backend to mark notifications as seen
-    if (currentUser) {
-        fetch(`${API_URL}/mark-notifications-seen`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                gmail: currentUser.gmail,
-                role: currentUser.role
-            })
-        }).catch(error => console.error('Error marking notifications as seen:', error));
-    }
 }
 
 function openNotificationHeader() {
@@ -5578,3 +5639,4 @@ window.addEventListener('load', function() {
         loadUserProfile();
     }
 });
+

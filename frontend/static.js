@@ -5103,6 +5103,8 @@ if (bundleItems.length < 2) {
 // ===== MESSAGING FUNCTIONS =====
 
 let currentChatUser = null;
+let selectedMessageImage = null;
+let messageImagePreviewUrl = null;
 
 async function openMessagesModal() {
     if (!currentUser) {
@@ -5117,6 +5119,7 @@ async function openMessagesModal() {
 function closeMessagesModal() {
     document.getElementById('messages-modal').style.display = 'none';
     currentChatUser = null;
+    clearMessageImage();
 }
 
 async function loadConversations() {
@@ -5144,13 +5147,18 @@ async function loadConversations() {
                 item.onclick = () => openChat(conv.other_user);
                 
                 const timestamp = new Date(conv.latest_timestamp).toLocaleString();
-                item.innerHTML = `
-                    <div class="conversation-header">
-                        <strong>${conv.other_user}</strong>
-                        <span class="conversation-time">${timestamp}</span>
-                    </div>
-                    <div class="conversation-preview">${conv.latest_message}</div>
-                `;
+                const header = document.createElement('div');
+                header.className = 'conversation-header';
+                const userName = document.createElement('strong');
+                userName.textContent = conv.other_user;
+                const time = document.createElement('span');
+                time.className = 'conversation-time';
+                time.textContent = timestamp;
+                header.append(userName, time);
+                const preview = document.createElement('div');
+                preview.className = 'conversation-preview';
+                preview.textContent = conv.latest_message || 'Photo';
+                item.append(header, preview);
                 
                 conversationsContainer.appendChild(item);
             });
@@ -5163,6 +5171,7 @@ async function loadConversations() {
 
 async function openChat(otherUser) {
     currentChatUser = otherUser;
+    clearMessageImage();
     
     // Show chat area and hide conversations list
     document.getElementById('conversations-list').style.display = 'none';
@@ -5247,12 +5256,27 @@ async function loadMessages() {
                 msgDiv.className = `message ${isSent ? 'sent' : 'received'}`;
                 
                 const timestamp = new Date(msg.timestamp).toLocaleTimeString();
-                msgDiv.innerHTML = `
-                    <div class="message-content">
-                        <p>${msg.message}</p>
-                        <span class="message-time">${timestamp}</span>
-                    </div>
-                `;
+                const content = document.createElement('div');
+                content.className = 'message-content';
+                if (msg.image) {
+                    const image = document.createElement('img');
+                    image.className = 'message-image';
+                    image.src = msg.image;
+                    image.alt = 'Image attachment';
+                    image.loading = 'lazy';
+                    image.onclick = () => window.open(msg.image, '_blank', 'noopener');
+                    content.appendChild(image);
+                }
+                if (msg.message) {
+                    const text = document.createElement('p');
+                    text.textContent = msg.message;
+                    content.appendChild(text);
+                }
+                const time = document.createElement('span');
+                time.className = 'message-time';
+                time.textContent = timestamp;
+                content.appendChild(time);
+                msgDiv.appendChild(content);
                 
                 messagesBody.appendChild(msgDiv);
             });
@@ -5268,27 +5292,78 @@ async function loadMessages() {
     }
 }
 
+function previewMessageImage(event) {
+    const imageFile = event.target.files[0];
+    if (!imageFile) return;
+    const supportedImageType = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(imageFile.type.toLowerCase());
+    const supportedImageExtension = /\.(png|jpe?g|gif|webp)$/i.test(imageFile.name);
+    if (!supportedImageType && !supportedImageExtension) {
+        alert('Please select a PNG, JPG, GIF, or WebP image');
+        event.target.value = '';
+        return;
+    }
+    if (imageFile.size > 5 * 1024 * 1024) {
+        alert('Image must be 5 MB or smaller');
+        event.target.value = '';
+        return;
+    }
+
+    clearMessageImage();
+    selectedMessageImage = imageFile;
+    messageImagePreviewUrl = URL.createObjectURL(imageFile);
+    const preview = document.getElementById('message-attachment-preview');
+    preview.innerHTML = '';
+    const thumbnail = document.createElement('img');
+    thumbnail.src = messageImagePreviewUrl;
+    thumbnail.alt = 'Selected image preview';
+    const filename = document.createElement('span');
+    filename.textContent = imageFile.name;
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.title = 'Remove image';
+    removeButton.setAttribute('aria-label', 'Remove image');
+    removeButton.innerHTML = '<i class="fas fa-times"></i>';
+    removeButton.onclick = clearMessageImage;
+    preview.append(thumbnail, filename, removeButton);
+    preview.style.display = 'flex';
+}
+
+function clearMessageImage() {
+    if (messageImagePreviewUrl) URL.revokeObjectURL(messageImagePreviewUrl);
+    messageImagePreviewUrl = null;
+    selectedMessageImage = null;
+    const fileInput = document.getElementById('message-image-input');
+    const preview = document.getElementById('message-attachment-preview');
+    if (fileInput) fileInput.value = '';
+    if (preview) {
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+    }
+}
+
 async function sendMessage() {
     const messageInput = document.getElementById('message-input');
     const message = messageInput.value.trim();
     
-    if (!message || !currentChatUser) return;
+    if ((!message && !selectedMessageImage) || !currentChatUser) return;
     
     try {
+        const formData = new FormData();
+        formData.append('sender', currentUser.gmail);
+        formData.append('recipient', currentChatUser);
+        formData.append('message', message);
+        if (selectedMessageImage) formData.append('image', selectedMessageImage);
+
         const response = await fetch(`${API_URL}/send-message`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sender: currentUser.gmail,
-                recipient: currentChatUser,
-                message: message
-            })
+            body: formData
         });
         
         const data = await response.json();
         
         if (data.success) {
             messageInput.value = '';
+            clearMessageImage();
             await loadMessages();
         } else {
             alert('Error sending message: ' + data.message);
@@ -5639,4 +5714,3 @@ window.addEventListener('load', function() {
         loadUserProfile();
     }
 });
-

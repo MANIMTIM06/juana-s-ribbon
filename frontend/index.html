@@ -1523,7 +1523,12 @@
                             <!-- Messages will be loaded here -->
                         </div>
                         
+                        <div class="message-attachment-preview" id="message-attachment-preview" style="display: none;"></div>
                         <div class="messages-input">
+                            <input type="file" id="message-image-input" accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp" hidden onchange="previewMessageImage(event)">
+                            <button type="button" class="attach-image-btn" onclick="document.getElementById('message-image-input').click()" title="Attach image" aria-label="Attach image">
+                                <i class="fas fa-image"></i>
+                            </button>
                             <input type="text" id="message-input" placeholder="Type your message..." 
                                    onkeypress="handleMessageKeyPress(event)">
                             <button onclick="sendMessage()" class="send-message-btn">

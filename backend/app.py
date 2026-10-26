@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta
 from PIL import Image
+from io import BytesIO
 import imagehash
 import tempfile
 import os
@@ -23,7 +24,9 @@ load_dotenv()
 
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'images')
+MESSAGE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'message_uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_MESSAGE_IMAGE_SIZE = 5 * 1024 * 1024
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -2956,19 +2959,45 @@ def check_product_hashes():
 
 @app.route('/send-message', methods=['POST'])
 def send_message():
-    data = request.json
+    data = request.form if request.content_type and request.content_type.startswith('multipart/form-data') else request.get_json(silent=True) or {}
     sender = data.get('sender')
     recipient = data.get('recipient')
     message = data.get('message')
-    
-    if not sender or not recipient or not message:
+
+    image_file = request.files.get('image')
+    image_url = None
+    if not sender or not recipient or (not message and not image_file):
         return jsonify({'success': False, 'message': 'Missing required fields'})
-    
+
     try:
+        if image_file and image_file.filename:
+            image_bytes = image_file.stream.read(MAX_MESSAGE_IMAGE_SIZE + 1)
+            if len(image_bytes) > MAX_MESSAGE_IMAGE_SIZE:
+                return jsonify({'success': False, 'message': 'Image must be 5 MB or smaller'}), 413
+
+            try:
+                uploaded_image = Image.open(BytesIO(image_bytes))
+                image_format = uploaded_image.format
+                uploaded_image.verify()
+            except Exception:
+                return jsonify({'success': False, 'message': 'Please select a valid image file'}), 400
+
+            format_extensions = {'JPEG': 'jpg', 'PNG': 'png', 'GIF': 'gif', 'WEBP': 'webp'}
+            extension = format_extensions.get(image_format)
+            if not extension:
+                return jsonify({'success': False, 'message': 'Only JPG, PNG, GIF, and WebP images are supported'}), 400
+
+            os.makedirs(MESSAGE_UPLOAD_FOLDER, exist_ok=True)
+            image_filename = f'{uuid.uuid4().hex}.{extension}'
+            with open(os.path.join(MESSAGE_UPLOAD_FOLDER, image_filename), 'wb') as saved_image:
+                saved_image.write(image_bytes)
+            image_url = f'/static/message_uploads/{image_filename}'
+
         message_doc = {
             'sender': sender,
             'recipient': recipient,
-            'message': message,
+            'message': message or '',
+            'image': image_url,
             'timestamp': datetime.now().isoformat(),
             'read': False
         }
@@ -2981,6 +3010,10 @@ def send_message():
             'message': 'Message sent successfully'
         })
     except Exception as e:
+        if image_url:
+            image_path = os.path.join(MESSAGE_UPLOAD_FOLDER, os.path.basename(image_url))
+            if os.path.exists(image_path):
+                os.remove(image_path)
         return jsonify({
             'success': False,
             'message': f'Error sending message: {str(e)}'
@@ -3060,7 +3093,7 @@ def get_conversations():
                 latest_msg['_id'] = str(latest_msg['_id'])
                 conversations.append({
                     'other_user': other_user,
-                    'latest_message': latest_msg['message'],
+                    'latest_message': latest_msg.get('message') or ('Photo' if latest_msg.get('image') else ''),
                     'latest_timestamp': latest_msg['timestamp'],
                     'is_sent': latest_msg['sender'] == user_gmail
                 })

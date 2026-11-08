@@ -22,6 +22,9 @@ import re
 
 load_dotenv()
 
+@app.route('/health')
+def health():
+    return 'ok', 200
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'images')
 MESSAGE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'message_uploads')

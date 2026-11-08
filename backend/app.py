@@ -471,6 +471,9 @@ def get_date_filter(period):
 @app.route('/')
 def index():
     return send_from_directory(FRONTEND_DIR, 'index.html')
+@app.route('/health')
+def health():
+    return 'ok', 200
 
 @app.route('/index.html')
 @app.route('/home')

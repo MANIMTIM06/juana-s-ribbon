@@ -44,7 +44,7 @@ let notificationTracking = {
 let currentNotifications = [];
 
 const CURRENCY = '₱';
-const API_URL = '';
+const API_URL = ''
 const DELIVERY_FEE = 50;
 
 async function fetchProducts() {
@@ -2121,6 +2121,11 @@ function getOrderActions(order) {
     let actions = `<button class="simple-action-btn receipt-btn" onclick="printCustomerReceipt('${order.order_id}')">
         <i class="fas fa-receipt"></i> View Receipt
     </button>`;
+    if (order.payment?.toLowerCase() === 'gcash' && order.payment_receipt_url) {
+        actions += `<button class="simple-action-btn design-btn" onclick="openPaymentReceiptModal('${encodeURIComponent(order.payment_receipt_url)}')">
+            <i class="fas fa-image"></i> Payment Receipt
+        </button>`;
+    }
     if (order.status === 'pending' || order.status === 'scheduled') {
         actions += `<button class="simple-action-btn payment-btn" onclick="updateSimpleOrderStatus('${order.order_id}', 'payment_confirmed')">
             <i class="fas fa-credit-card"></i> Confirm Payment
@@ -2215,6 +2220,23 @@ function openBundleDesignModal(encodedImage) {
         emptyMessage.style.display = 'block';
     }
     modal.classList.add('active');
+}
+
+function openPaymentReceiptModal(encodedImage) {
+    const image = decodeURIComponent(encodedImage);
+    const modal = document.getElementById('payment-receipt-modal');
+    const imageElement = document.getElementById('payment-receipt-modal-image');
+    if (!modal || !imageElement) return;
+
+    imageElement.src = image;
+    modal.classList.add('active');
+}
+
+function closePaymentReceiptModal() {
+    const modal = document.getElementById('payment-receipt-modal');
+    const imageElement = document.getElementById('payment-receipt-modal-image');
+    if (modal) modal.classList.remove('active');
+    if (imageElement) imageElement.src = '';
 }
 
 function closeBundleDesignModal() {
@@ -2665,6 +2687,19 @@ function resetCheckoutModal() {
     
     const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]');
     paymentMethodRadios.forEach(radio => { if (radio) radio.checked = false; });
+
+    const paymentReceiptInput = document.getElementById('payment-receipt-input');
+    if (paymentReceiptInput) paymentReceiptInput.value = '';
+    if (window.paymentReceiptPreviewUrl) {
+        URL.revokeObjectURL(window.paymentReceiptPreviewUrl);
+        window.paymentReceiptPreviewUrl = null;
+    }
+    const paymentReceiptPreview = document.getElementById('payment-receipt-preview');
+    if (paymentReceiptPreview) paymentReceiptPreview.style.display = 'none';
+    const paymentReceiptPreviewImage = document.getElementById('payment-receipt-preview-image');
+    if (paymentReceiptPreviewImage) paymentReceiptPreviewImage.src = '';
+    const paymentReceiptFilename = document.getElementById('payment-receipt-filename');
+    if (paymentReceiptFilename) paymentReceiptFilename.textContent = '';
     
     const deliveryAddress = document.getElementById('delivery-address');
     if (deliveryAddress) deliveryAddress.value = '';
@@ -2886,7 +2921,9 @@ function goToCheckoutStep3() {
 
 function selectPaymentMethod(payment) {
     checkoutData.payment = payment;
-    document.getElementById('payment-next-btn').disabled = false;
+    const paymentReceiptInput = document.getElementById('payment-receipt-input');
+    document.getElementById('payment-next-btn').disabled =
+        payment === 'gcash' && !(paymentReceiptInput && paymentReceiptInput.files.length);
     
     if (payment === 'gcash') {
         document.getElementById('gcash-qr-section').style.display = 'block';
@@ -2896,9 +2933,45 @@ function selectPaymentMethod(payment) {
     }
 }
 
+function handlePaymentReceiptChange(event) {
+    const file = event.target.files[0];
+    const paymentNextButton = document.getElementById('payment-next-btn');
+    const preview = document.getElementById('payment-receipt-preview');
+    const previewImage = document.getElementById('payment-receipt-preview-image');
+    const filename = document.getElementById('payment-receipt-filename');
+
+    if (!file) {
+        if (preview) preview.style.display = 'none';
+        if (paymentNextButton) paymentNextButton.disabled = !checkoutData.payment || checkoutData.payment === 'gcash';
+        return;
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+        alert('Choose a JPG, PNG, GIF, or WEBP image that is 5 MB or smaller.');
+        event.target.value = '';
+        if (preview) preview.style.display = 'none';
+        if (paymentNextButton) paymentNextButton.disabled = !checkoutData.payment || checkoutData.payment === 'gcash';
+        return;
+    }
+
+    if (window.paymentReceiptPreviewUrl) URL.revokeObjectURL(window.paymentReceiptPreviewUrl);
+    window.paymentReceiptPreviewUrl = URL.createObjectURL(file);
+    if (previewImage) previewImage.src = window.paymentReceiptPreviewUrl;
+    if (filename) filename.textContent = file.name;
+    if (preview) preview.style.display = 'flex';
+    if (paymentNextButton) paymentNextButton.disabled = !checkoutData.payment;
+}
+
 async function processOrder() {
     if (!checkoutData.payment) {
         alert('Please select a payment method');
+        return;
+    }
+
+    const paymentReceiptInput = document.getElementById('payment-receipt-input');
+    const paymentReceiptFile = paymentReceiptInput?.files[0];
+    if (checkoutData.payment === 'gcash' && !paymentReceiptFile) {
+        alert('Please upload your GCash payment receipt before placing the order.');
         return;
     }
     
@@ -2942,11 +3015,18 @@ async function processOrder() {
         payment: checkoutData.payment
     };
     
+    const paymentNextButton = document.getElementById('payment-next-btn');
+    paymentNextButton.disabled = true;
+    paymentNextButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing Order...';
+
     try {
+        const formData = new FormData();
+        formData.append('order', JSON.stringify(order));
+        if (paymentReceiptFile) formData.append('payment_receipt', paymentReceiptFile);
+
         const response = await fetch(`${API_URL}/calendar-order`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(order)
+            body: formData
         });
         const data = await response.json();
         
@@ -2957,16 +3037,13 @@ async function processOrder() {
             robustPopulateReceipt(data.order_id);
         } else {
             alert(data.message || 'Failed to place order.');
-            showCheckoutStep(4);
-            window.lastOrderId = '#' + Math.floor(1000 + Math.random() * 9000);
-            setTimeout(() => robustPopulateReceipt(window.lastOrderId), 300);
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Order simulated for demo.');
-        showCheckoutStep(4);
-        window.lastOrderId = '#' + Math.floor(1000 + Math.random() * 9000);
-        setTimeout(() => robustPopulateReceipt(window.lastOrderId), 300);
+        console.error('Error placing order:', error);
+        alert('Unable to place your order. Please check your connection and try again.');
+    } finally {
+        paymentNextButton.disabled = checkoutData.payment === 'gcash' && !paymentReceiptInput?.files.length;
+        paymentNextButton.innerHTML = 'Place Order <i class="fas fa-check"></i>';
     }
 }
 

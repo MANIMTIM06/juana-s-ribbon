@@ -1,10 +1,13 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory
 import requests
 from pymongo import MongoClient
+from bson import Binary
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta
 from PIL import Image
 from io import BytesIO
+import json
+import mimetypes
 import imagehash
 import tempfile
 import os
@@ -12,7 +15,7 @@ from functools import wraps
 import sys
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+from werkzeug.utils import safe_join, secure_filename
 from itsdangerous import URLSafeTimedSerializer
 import uuid
 import random
@@ -22,17 +25,19 @@ import re
 
 load_dotenv()
 
+
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'images')
 MESSAGE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'message_uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_MESSAGE_IMAGE_SIZE = 5 * 1024 * 1024
+MAX_PAYMENT_RECEIPT_SIZE = 5 * 1024 * 1024
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-app = Flask(__name__, static_folder='../static', template_folder='../frontend')
+app = Flask(__name__, static_folder=None, template_folder='../frontend')
 
 # Flask-Mail Configuration
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
@@ -70,8 +75,32 @@ otp_collection = db['otp_tokens']
 notifications_collection = db['notifications']
 notification_views_collection = db['notification_views']
 return_requests_collection = db['return_requests']
+media_collection = db['media_files']
 
 PRODUCT_HASHES = {}
+
+def save_media(filename, data_bytes):
+    with Image.open(BytesIO(data_bytes)) as image:
+        image_format = image.format
+        if image_format != 'GIF':
+            image.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+            if image_format == 'JPEG' and image.mode in ('RGBA', 'P'):
+                image = image.convert('RGB')
+            resized_image = BytesIO()
+            save_options = {'quality': 85} if image_format == 'JPEG' else {}
+            image.save(resized_image, format=image_format, **save_options)
+            data_bytes = resized_image.getvalue()
+
+    media_collection.update_one(
+        {'filename': filename},
+        {'$set': {
+            'filename': filename,
+            'data': Binary(data_bytes),
+            'content_type': mimetypes.guess_type(filename)[0] or 'application/octet-stream',
+            'created_at': datetime.now().isoformat()
+        }},
+        upsert=True
+    )
 
 def build_image_signature(img):
     """Build visual features that are more reliable than average hash alone."""
@@ -398,9 +427,14 @@ def seed_data():
     for product in products:
         image_filename = product['image']
         image_path = os.path.join(static_images_dir, image_filename)
-        if os.path.exists(image_path):
+        image_source = image_path if os.path.exists(image_path) else None
+        if image_source is None:
+            media = media_collection.find_one({'filename': f'images/{image_filename}'})
+            if media:
+                image_source = BytesIO(bytes(media['data']))
+        if image_source is not None:
             try:
-                with Image.open(image_path) as img:
+                with Image.open(image_source) as img:
                     if img.mode not in ('RGB', 'L'):
                         img = img.convert('RGB')
                     PRODUCT_HASHES[image_filename] = {
@@ -411,7 +445,7 @@ def seed_data():
             except Exception as e:
                 print(f"  [FAIL] Error hashing {image_filename}: {e}")
         else:
-            print(f"  [FAIL] Image not found: {image_path}")
+            print(f"  [FAIL] Image not found: {image_filename}")
     print(f"Product image hashes precomputed. Total: {len(PRODUCT_HASHES)} products ready for matching")
 
 def validate_schedule(date_str, time_str):
@@ -432,8 +466,14 @@ def update_product_hash(product_name, image_filename):
         print(f"[HASH] Image path: {image_path}")
         print(f"[HASH] Image exists: {os.path.exists(image_path)}")
         
-        if os.path.exists(image_path):
-            with Image.open(image_path) as img:
+        image_source = image_path if os.path.exists(image_path) else None
+        if image_source is None:
+            media = media_collection.find_one({'filename': f'images/{image_filename}'})
+            if media:
+                image_source = BytesIO(bytes(media['data']))
+
+        if image_source is not None:
+            with Image.open(image_source) as img:
                 print(f"[HASH] Original image mode: {img.mode}, size: {img.size}")
                 # Ensure consistent image format
                 if img.mode not in ('RGB', 'L'):
@@ -448,7 +488,7 @@ def update_product_hash(product_name, image_filename):
                 print(f"[HASH] Total products in hashes: {len(PRODUCT_HASHES)}")
                 return True
         else:
-            print(f"[FAIL] Image not found for product {product_name}: {image_path}")
+            print(f"[FAIL] Image not found for product {product_name}: {image_filename}")
             return False
     except Exception as e:
         print(f"[FAIL] Error hashing product {product_name}: {e}")
@@ -471,6 +511,7 @@ def get_date_filter(period):
 @app.route('/')
 def index():
     return send_from_directory(FRONTEND_DIR, 'index.html')
+
 @app.route('/health')
 def health():
     return 'ok', 200
@@ -486,7 +527,32 @@ def serve_frontend_files(filename):
 
 @app.route('/static/<path:path>')
 def serve_static(path):
-    return send_from_directory(STATIC_DIR, path)
+    disk_path = safe_join(STATIC_DIR, path)
+    if disk_path and os.path.isfile(disk_path):
+        return send_from_directory(STATIC_DIR, path)
+
+    media = media_collection.find_one({'filename': path})
+    if not media:
+        return jsonify({'success': False, 'message': 'File not found'}), 404
+
+    response = send_file(
+        BytesIO(bytes(media['data'])),
+        mimetype=media.get('content_type') or mimetypes.guess_type(path)[0] or 'application/octet-stream',
+        max_age=86400
+    )
+    return response
+
+@app.route('/media/<path:filename>')
+def serve_media(filename):
+    media = media_collection.find_one({'filename': filename})
+    if not media:
+        return jsonify({'success': False, 'message': 'File not found'}), 404
+
+    return send_file(
+        BytesIO(bytes(media['data'])),
+        mimetype=media.get('content_type') or mimetypes.guess_type(filename)[0] or 'application/octet-stream',
+        max_age=86400
+    )
 
 @app.route('/customer-register', methods=['POST'])
 def customer_register():
@@ -704,6 +770,7 @@ def update_user_profile():
                 # Delete old profile image if exists
                 if profile_image_filename and profile_image_filename not in ['default-avatar.png', 'default-avatar.svg']:
                     old_path = os.path.join(UPLOAD_FOLDER, profile_image_filename)
+                    media_collection.delete_one({'filename': f'images/{profile_image_filename}'})
                     if os.path.exists(old_path):
                         try:
                             os.remove(old_path)
@@ -713,9 +780,7 @@ def update_user_profile():
                 # Save new profile image
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 unique_filename = f"profile_{uuid.uuid4().hex}.{ext}"
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-                file.save(file_path)
+                save_media(f'images/{unique_filename}', file.read())
                 profile_image_filename = unique_filename
         
         # Update user data
@@ -990,12 +1055,54 @@ def parse_quantity(quantity_value):
 
 @app.route('/calendar-order', methods=['POST'])
 def calendar_order():
-    data = request.json
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = json.loads(request.form.get('order', '{}'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid order details'})
+
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'message': 'Invalid order details'})
+
+    payment = str(data.get('payment', 'cash')).lower()
+    if payment not in {'cash', 'gcash'}:
+        return jsonify({'success': False, 'message': 'Invalid payment method'})
+
     date = data.get('date', '')
     time = data.get('time', '')
     is_valid, result = validate_schedule(date, time)
     if not is_valid:
         return jsonify({'success': False, 'message': result})
+
+    payment_receipt_url = None
+    if payment == 'gcash':
+        receipt_file = request.files.get('payment_receipt')
+        if not receipt_file or receipt_file.filename == '':
+            return jsonify({'success': False, 'message': 'Please upload your GCash payment receipt'})
+
+        receipt_bytes = receipt_file.stream.read(MAX_PAYMENT_RECEIPT_SIZE + 1)
+        if len(receipt_bytes) > MAX_PAYMENT_RECEIPT_SIZE:
+            return jsonify({'success': False, 'message': 'Payment receipt must be 5 MB or smaller'})
+
+        try:
+            with Image.open(BytesIO(receipt_bytes)) as receipt_image:
+                image_format = receipt_image.format
+                if receipt_image.width * receipt_image.height > 20_000_000:
+                    return jsonify({'success': False, 'message': 'Payment receipt image dimensions are too large'})
+                receipt_image.verify()
+        except (OSError, ValueError, Image.DecompressionBombError):
+            return jsonify({'success': False, 'message': 'Please upload a valid payment receipt image'})
+
+        format_extensions = {'JPEG': 'jpg', 'PNG': 'png', 'GIF': 'gif', 'WEBP': 'webp'}
+        extension = format_extensions.get(image_format)
+        if not extension:
+            return jsonify({'success': False, 'message': 'Receipt must be a JPG, PNG, GIF, or WEBP image'})
+
+        receipt_filename = f"payment-receipt-{uuid.uuid4().hex}.{extension}"
+        save_media(f'images/payment-receipts/{receipt_filename}', receipt_bytes)
+        payment_receipt_url = f'/static/images/payment-receipts/{receipt_filename}'
     
     order_id_num = orders_collection.count_documents({}) + 1
     order_id = f"#{order_id_num:04d}"
@@ -1012,7 +1119,9 @@ def calendar_order():
         'scheduled_date': date,
         'scheduled_time': time,
         'scheduled_datetime': result,
-        'payment': data.get('payment', 'cash'),
+        'payment': payment,
+        'payment_status': 'pending' if payment == 'gcash' else 'not_required',
+        'payment_receipt_url': payment_receipt_url,
         'bundle_designs': data.get('bundle_designs', []),
         'date': datetime.now().strftime("%Y-%m-%d"),
         'created_at': datetime.now().isoformat(),
@@ -1047,8 +1156,7 @@ def upload_bundle_design():
 
     ext = file.filename.rsplit('.', 1)[1].lower()
     unique_filename = f"bundle-design-{uuid.uuid4().hex}.{ext}"
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
+    save_media(f'images/{unique_filename}', file.read())
 
     return jsonify({
         'success': True,
@@ -1071,8 +1179,14 @@ def update_order_status():
     order = orders_collection.find_one({'order_id': order_id})
     if not order:
         return jsonify({'success': False, 'message': 'Order not found'})
-    
+
+    if new_status == 'payment_confirmed' and str(order.get('payment', '')).lower() == 'gcash':
+        if not order.get('payment_receipt_url'):
+            return jsonify({'success': False, 'message': 'Cannot confirm GCash payment without a receipt image'})
+
     update_data = {'status': new_status}
+    if new_status == 'payment_confirmed':
+        update_data['payment_status'] = 'confirmed'
     if new_status == 'cancelled' and cancel_reason:
         update_data['cancel_reason'] = cancel_reason
     
@@ -1922,6 +2036,7 @@ def delete_product():
     image_filename = product.get('image')
     if image_filename and image_filename != 'default.jpg':
         image_path = os.path.join(UPLOAD_FOLDER, image_filename)
+        media_collection.delete_one({'filename': f'images/{image_filename}'})
         if os.path.exists(image_path):
             try:
                 os.remove(image_path)
@@ -2173,12 +2288,7 @@ def upload_product_image():
         
         unique_filename = f"{uuid.uuid4().hex}.{ext}"
         
-        
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        
-        
-        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-        file.save(file_path)
+        save_media(f'images/{unique_filename}', file.read())
         
         return jsonify({
             'success': True,
@@ -2201,9 +2311,7 @@ def add_new_product_with_image():
             if file.filename != '' and allowed_file(file.filename):
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 unique_filename = f"{uuid.uuid4().hex}.{ext}"
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-                file.save(file_path)
+                save_media(f'images/{unique_filename}', file.read())
                 image_filename = unique_filename
         
         
@@ -2968,6 +3076,7 @@ def send_message():
 
     image_file = request.files.get('image')
     image_url = None
+    media_filename = None
     if not sender or not recipient or (not message and not image_file):
         return jsonify({'success': False, 'message': 'Missing required fields'})
 
@@ -2989,11 +3098,10 @@ def send_message():
             if not extension:
                 return jsonify({'success': False, 'message': 'Only JPG, PNG, GIF, and WebP images are supported'}), 400
 
-            os.makedirs(MESSAGE_UPLOAD_FOLDER, exist_ok=True)
             image_filename = f'{uuid.uuid4().hex}.{extension}'
-            with open(os.path.join(MESSAGE_UPLOAD_FOLDER, image_filename), 'wb') as saved_image:
-                saved_image.write(image_bytes)
-            image_url = f'/static/message_uploads/{image_filename}'
+            media_filename = f'message_uploads/{image_filename}'
+            save_media(media_filename, image_bytes)
+            image_url = f'/media/{media_filename}'
 
         message_doc = {
             'sender': sender,
@@ -3012,10 +3120,8 @@ def send_message():
             'message': 'Message sent successfully'
         })
     except Exception as e:
-        if image_url:
-            image_path = os.path.join(MESSAGE_UPLOAD_FOLDER, os.path.basename(image_url))
-            if os.path.exists(image_path):
-                os.remove(image_path)
+        if media_filename:
+            media_collection.delete_one({'filename': media_filename})
         return jsonify({
             'success': False,
             'message': f'Error sending message: {str(e)}'

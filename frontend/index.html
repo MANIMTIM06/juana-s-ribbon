@@ -953,6 +953,17 @@
                                 </div>
                                 <p class="qr-amount">Total: <span id="gcash-amount">₱0</span></p>
                                 <p class="qr-instruction">Scan this QR code using your GCash app</p>
+                                <div class="payment-receipt-upload">
+                                    <label class="payment-receipt-upload-btn" for="payment-receipt-input">
+                                        <i class="fas fa-upload"></i> Upload Payment Receipt
+                                    </label>
+                                    <input type="file" id="payment-receipt-input" accept="image/png,image/jpeg,image/gif,image/webp" onchange="handlePaymentReceiptChange(event)" hidden>
+                                    <p class="payment-receipt-help">Upload a screenshot of your GCash payment (JPG, PNG, GIF, or WEBP; max 5 MB).</p>
+                                    <div id="payment-receipt-preview" class="payment-receipt-preview" style="display:none;">
+                                        <img id="payment-receipt-preview-image" src="" alt="Payment receipt preview">
+                                        <span id="payment-receipt-filename"></span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1340,6 +1351,18 @@
                 <div class="modal-body">
                     <img id="bundle-design-modal-image" class="bundle-design-modal-image" src="" alt="Customer's preferred bundle design">
                     <p id="bundle-design-modal-empty" class="no-design-message" style="display:none;">This order has no preferred design image.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="payment-receipt-modal">
+            <div class="modal-content payment-receipt-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-receipt"></i> GCash Payment Receipt</h3>
+                    <button class="close-modal" onclick="closePaymentReceiptModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <img id="payment-receipt-modal-image" src="" alt="Customer's GCash payment receipt">
                 </div>
             </div>
         </div>

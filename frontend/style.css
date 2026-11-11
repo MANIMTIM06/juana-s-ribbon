@@ -2620,6 +2620,57 @@ body {
     padding: 10px;
 }
 
+.payment-receipt-upload {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--secondary-pink);
+}
+
+.payment-receipt-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 18px;
+    border-radius: 10px;
+    color: white;
+    background: var(--dark-pink);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.payment-receipt-help {
+    margin-top: 8px;
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+.payment-receipt-preview {
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    overflow-wrap: anywhere;
+    text-align: left;
+}
+
+.payment-receipt-preview img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: white;
+}
+
+.payment-receipt-modal-content {
+    max-width: 700px;
+}
+
+#payment-receipt-modal-image {
+    display: block;
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+}
+
 .qr-placeholder {
     width: 200px;
     height: 200px;
@@ -5801,4 +5852,3 @@ body {
         grid-template-columns: 1fr;
     }
 }
-
